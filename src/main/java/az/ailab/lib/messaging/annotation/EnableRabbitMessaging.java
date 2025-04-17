@@ -1,6 +1,7 @@
 package az.ailab.lib.messaging.annotation;
 
 import az.ailab.lib.messaging.config.RabbitMQConfig;
+import az.ailab.lib.messaging.util.ProxyClassGenerationChecker;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -53,15 +54,16 @@ import org.springframework.context.annotation.Import;
  * <p>After applying this annotation, you can create event publishers using {@link RabbitEventPublisher}
  * and event listeners using {@link RabbitEventListener} without additional configuration.</p>
  *
+ * @author tahmazovfarid
  * @see RabbitEventPublisher
  * @see RabbitEventListener
  * @see RabbitMQConfig
- * @author tahmazovfarid
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Import(RabbitMQConfig.class)
+@Import(value = {ProxyClassGenerationChecker.class, RabbitMQConfig.class})
+@CheckProxyClassGeneration
 public @interface EnableRabbitMessaging {
     // No parameters needed as all configuration comes from properties
 }
