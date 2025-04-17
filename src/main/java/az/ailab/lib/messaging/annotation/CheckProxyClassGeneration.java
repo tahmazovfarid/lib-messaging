@@ -1,6 +1,6 @@
 package az.ailab.lib.messaging.annotation;
 
-import az.ailab.lib.messaging.util.ProxyClassGenerationChecker;
+import az.ailab.lib.messaging.config.ProxyClassGenerationChecker;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

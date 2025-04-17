@@ -33,7 +33,6 @@ import org.springframework.stereotype.Component;
  * @author tahmazovfarid
  */
 @Component
-@DependsOn("proxyClassGenerationChecker")
 @Slf4j
 @RequiredArgsConstructor
 public class RabbitMQPublisherRegistrar implements ApplicationListener<ContextRefreshedEvent> {
