@@ -129,8 +129,15 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
             final SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
             container.setQueueNames(queueName);
             container.setMessageListener(listenerAdapter);
-            container.setErrorHandler(t ->
-                    log.error("Error in message listener for queue {}: {}", queueName, t.getMessage(), t));
+            container.setErrorHandler(t -> {
+                Throwable cause = t.getCause();
+                if (cause instanceof com.fasterxml.jackson.databind.JsonMappingException ||
+                        cause instanceof org.springframework.amqp.support.converter.MessageConversionException) {
+                    log.warn("Invalid JSON message for queue '{}', skipping message: {}", queueName, cause.getMessage());
+                } else {
+                    log.error("Unexpected error in listener for queue '{}': {}", queueName, t.getMessage(), t);
+                }
+            });
             // Configure to not fail if queue doesn't exist yet
             container.setMissingQueuesFatal(false);
 
