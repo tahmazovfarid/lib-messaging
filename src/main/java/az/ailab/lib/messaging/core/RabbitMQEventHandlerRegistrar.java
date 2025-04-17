@@ -12,8 +12,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.listener.ConditionalRejectingErrorHandler;
+import org.springframework.amqp.rabbit.listener.FatalExceptionStrategy;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
+import org.springframework.amqp.support.converter.MessageConversionException;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
@@ -129,17 +132,17 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
             final SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
             container.setQueueNames(queueName);
             container.setMessageListener(listenerAdapter);
-            container.setErrorHandler(t -> {
-                Throwable cause = t.getCause();
-                if (cause instanceof com.fasterxml.jackson.databind.JsonMappingException ||
-                        cause instanceof org.springframework.amqp.support.converter.MessageConversionException) {
-                    log.warn("Invalid JSON message for queue '{}', skipping message: {}", queueName, cause.getMessage());
-                } else {
-                    log.error("Unexpected error in listener for queue '{}': {}", queueName, t.getMessage(), t);
-                }
-            });
             // Configure to not fail if queue doesn't exist yet
             container.setMissingQueuesFatal(false);
+            container.setErrorHandler(new ConditionalRejectingErrorHandler(t -> {
+                Throwable cause = t.getCause();
+                if (cause instanceof MessageConversionException ||
+                        cause instanceof com.fasterxml.jackson.databind.JsonMappingException) {
+                    log.warn("Invalid JSON message for queue '{}', skipping message: {}", queueName, cause.getMessage());
+                    return true;
+                }
+                return false;
+            }));
 
             // Configure concurrency if specified
             if (minConsumers > 0) {
