@@ -64,4 +64,16 @@ public @interface RabbitEventPublisher {
      */
     String source() default "";
 
+    /**
+     * Indicates whether the exchange should be automatically created if it does not already exist.
+     * <p>
+     * When set to {@code true}, the exchange will be declared at application startup. This is useful
+     * in development or dynamic environments where exchanges are not pre-provisioned.
+     * In production, it's common to manage exchanges manually and set this to {@code false}
+     * to avoid accidental creation or misconfiguration.
+     *
+     * @return {@code true} if the exchange should be auto-created; {@code false} otherwise
+     */
+    boolean autoCreate() default false;
+
 }

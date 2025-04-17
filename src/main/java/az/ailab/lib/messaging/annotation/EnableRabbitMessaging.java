@@ -9,18 +9,27 @@ import java.lang.annotation.Target;
 import org.springframework.context.annotation.Import;
 
 /**
- * Enables RabbitMQ messaging capabilities in a Spring application.
- * This annotation should be applied to a configuration class to import all necessary
- * RabbitMQ infrastructure components.
+ * Enables RabbitMQ messaging infrastructure in a Spring application.
+ *
+ * <p>This annotation imports all necessary RabbitMQ configuration and enables the automatic
+ * discovery of {@link RabbitEventListener} and {@link RabbitEventPublisher} components.
+ * It's similar to Spring's {@code @EnableJpaRepositories} or {@code @EnableWebMvc} annotations
+ * in concept, but for RabbitMQ messaging.</p>
+ *
+ * <p>When applied to a Spring {@code @Configuration} class, it:</p>
+ * <ul>
+ *   <li>Registers necessary beans for RabbitMQ connection and channel management</li>
+ *   <li>Configures message converters for serialization/deserialization</li>
+ *   <li>Sets up infrastructure for dynamic publisher and listener registration</li>
+ *   <li>Applies configuration from properties or YAML files</li>
+ * </ul>
  *
  * <p>Usage example:</p>
  * <pre>{@code
+ * @Configuration
  * @EnableRabbitMessaging
- * @SpringBootApplication
- * public class OrderServiceApplication {
- *     public static void main(String[] args) {
- *         SpringApplication.run(OrderServiceApplication.class, args);
- *     }
+ * public class RabbitConfiguration {
+ *     // Additional custom configuration if needed
  * }
  * }</pre>
  *
@@ -41,6 +50,12 @@ import org.springframework.context.annotation.Import;
  *       exchange-durable: true
  * }</pre>
  *
+ * <p>After applying this annotation, you can create event publishers using {@link RabbitEventPublisher}
+ * and event listeners using {@link RabbitEventListener} without additional configuration.</p>
+ *
+ * @see RabbitEventPublisher
+ * @see RabbitEventListener
+ * @see RabbitMQConfig
  * @author tahmazovfarid
  */
 @Target(ElementType.TYPE)

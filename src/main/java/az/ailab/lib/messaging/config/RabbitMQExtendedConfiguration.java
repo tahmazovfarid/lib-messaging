@@ -6,9 +6,6 @@ import az.ailab.lib.messaging.core.resolver.QueueNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
 import az.ailab.lib.messaging.util.ApplicationContextUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.util.StdDateFormat;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
@@ -43,12 +40,7 @@ public class RabbitMQExtendedConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public MessageConverter jsonMessageConverter() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-        objectMapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
-
+    public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
         return new Jackson2JsonMessageConverter(objectMapper);
     }
 

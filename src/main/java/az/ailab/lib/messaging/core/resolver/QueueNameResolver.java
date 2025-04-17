@@ -1,8 +1,8 @@
 package az.ailab.lib.messaging.core.resolver;
 
+import io.micrometer.common.util.StringUtils;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.util.Assert;
 
 /**
  * Utility class for resolving queue names based on provided parameters and configuration.
@@ -36,9 +36,7 @@ public class QueueNameResolver {
      * @throws IllegalArgumentException if the queue name is invalid
      */
     public String resolveQueueName(final String queueName, final String routingKey) {
-        Assert.notNull(queueName, "Exchange name must not be null");
-
-        if (queueName.isEmpty()) {
+        if (StringUtils.isBlank(queueName)) {
             throw new IllegalArgumentException("Queue name must not be empty");
         }
 
@@ -53,7 +51,7 @@ public class QueueNameResolver {
         builder.append(queueName);
 
         // Add routing key if provided
-        if (routingKey != null && !routingKey.isEmpty()) {
+        if (StringUtils.isNotBlank(routingKey)) {
             builder.append(".").append(routingKey);
         }
 

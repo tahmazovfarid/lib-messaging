@@ -20,8 +20,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *   rabbitmq:
  *     config:
  *       queue-prefix: expertise.user-service # {project_name}.{service_name}
- *       queue-durable: true
- *       exchange-durable: true
  *       dead-letter-exchange-suffix: .dlx
  *       dead-letter-queue-suffix: .dlq
  * </pre>
@@ -73,49 +71,5 @@ public class RabbitMQExtendedProperties {
      * <p>Default value is ".dlq".</p>
      */
     private String deadLetterQueueSuffix = ".dlq";
-
-    /**
-     * Default queue durable setting.
-     *
-     * <p>When set to "true", queues persist and survive broker restarts. This means
-     * that even if the RabbitMQ broker is restarted, the queue and its messages won't
-     * be lost, as the data is stored on disk.</p>
-     *
-     * <p>It's recommended to set this to "true" in production environments, especially
-     * for critical services like order processing or file management.</p>
-     *
-     * <p>Default value is "true".</p>
-     */
-    private boolean queueDurable = true;
-
-    /**
-     * Default exchange durable setting.
-     *
-     * <p>When set to "true", exchanges persist and survive broker restarts. This ensures
-     * that exchange configurations are not lost when the broker is restarted, eliminating
-     * the need to recreate them.</p>
-     *
-     * <p>It's recommended to set this to "true" in production environments, particularly for
-     * core message exchanges like those used between user and order services.</p>
-     *
-     * <p>Default value is "true".</p>
-     */
-    private boolean exchangeDurable = true;
-
-    /**
-     * Whether to automatically delete queues and exchanges when they are no longer in use.
-     *
-     * <p>When set to "true", queues and exchanges are automatically deleted when the last
-     * consumer using them disconnects.</p>
-     *
-     * <p>This parameter can be useful for test and development environments, but is typically
-     * set to "false" in production environments.</p>
-     *
-     * <p>For instance, in the procedural-type service testing environment, temporary queues
-     * for test events might be configured with autoDelete=true.</p>
-     *
-     * <p>Default value is "false".</p>
-     */
-    private boolean autoDelete = false;
 
 }

@@ -10,6 +10,7 @@ import java.util.Map;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
@@ -22,7 +23,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
 
 /**
- * Registrar that processes {@link RabbitEventHandler} annotations and sets up message listeners.
+ * Responsible for registering RabbitMQ listeners annotated with
+ * {@link RabbitEventListener} and {@link RabbitEventHandler}.
+ * Scans all beans after Spring context is refreshed,
+ * sets up exchanges, queues, bindings, and listeners accordingly.
+ * @author tahmazovfarid
  */
 @Component
 @Slf4j
@@ -34,10 +39,17 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
     private final ExchangeNameResolver exchangeNameResolver;
     private final QueueNameResolver queueNameResolver;
     private final RoutingKeyResolver routingKeyResolver;
+    private final AmqpAdmin amqpAdmin;
+    private final RabbitMQInfrastructure infrastructure;
 
+    /**
+     * Triggers when Spring context is fully initialized.
+     * Scans for @RabbitEventListener beans and processes their handler methods.
+     */
     @Override
     public void onApplicationEvent(@NonNull final ContextRefreshedEvent event) {
         ApplicationContext ctx = event.getApplicationContext();
+        log.debug("Starting RabbitMQ listener registration process");
 
         // Get all beans with RabbitEventListener annotation
         Map<String, Object> listeners = ctx.getBeansWithAnnotation(RabbitEventListener.class);
@@ -45,17 +57,18 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
         listeners.values().forEach(bean -> {
             RabbitEventListener classAnnotation = AnnotationUtils.findAnnotation(bean.getClass(), RabbitEventListener.class);
             if (classAnnotation != null) {
+                log.debug("Processing bean: {} with RabbitEventListener", bean.getClass().getName());
                 processEventHandlerAnnotations(bean, classAnnotation);
             }
         });
     }
 
-    private void processEventHandlerAnnotations(final Object bean,
-                                                final RabbitEventListener classAnnotation) {
-        final String exchangeName = classAnnotation.exchange();
-        final String resolvedExchangeName = exchangeNameResolver.resolveExchangeName(exchangeName);
+    private void processEventHandlerAnnotations(final Object bean, final RabbitEventListener classAnnotation) {
+        final ExchangeType exchangeType = classAnnotation.exchangeType();
+        final String resolvedExchangeName = exchangeNameResolver.resolveExchangeName(classAnnotation.exchange());
+        final boolean autoCreate = classAnnotation.autoCreate();
 
-        log.debug("Setting up message listeners for exchange: {}", resolvedExchangeName);
+        log.debug("Resolved exchange: {}, type: {}, autoCreate: {}", resolvedExchangeName, exchangeType, autoCreate);
 
         // Process each method with @RabbitEventHandler annotation
         ReflectionUtils.doWithMethods(bean.getClass(), method -> {
@@ -63,7 +76,7 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
 
             if (methodAnnotation != null) {
                 try {
-                    processEventHandlerMethod(bean, method, methodAnnotation, resolvedExchangeName);
+                    processEventHandlerMethod(bean, method, methodAnnotation, resolvedExchangeName, exchangeType, autoCreate);
                 } catch (Exception e) {
                     log.error("Failed to process event handler method: {} due to: {}", method.getName(), e.getMessage(), e);
                 }
@@ -74,25 +87,35 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
     private void processEventHandlerMethod(final Object bean,
                                            final Method method,
                                            final RabbitEventHandler annotation,
-                                           final String exchangeName) {
-        final String routingKey = annotation.routingKey();
-        final String resolvedRoutingKey = routingKeyResolver.resolveRoutingKey(routingKey);
+                                           final String exchangeName,
+                                           final ExchangeType exchangeType,
+                                           final boolean autoCreate) {
+        final String resolvedRoutingKey = routingKeyResolver.resolveRoutingKey(annotation.routingKey());
 
         // Determine queue name
-        String queueName = annotation.queue();
-        if (queueName.isEmpty()) {
-            queueName = resolvedRoutingKey.equals("#") ? exchangeName // Use exchange name for catch-all
-                    : exchangeName + "." + resolvedRoutingKey;
-        }
+        final String queueName = annotation.queue().isEmpty() ?
+                infrastructure.defaultQueueName(exchangeName, resolvedRoutingKey) : annotation.queue();
 
         // Resolve full queue name with prefix
         final String resolvedQueueName = queueNameResolver.resolveQueueName(queueName);
-        log.debug("Setting up listener for queue: {} with routing key: {}", resolvedQueueName, resolvedRoutingKey);
+
+        log.debug("Resolved queue: {}, routingKey: {}", resolvedQueueName, resolvedRoutingKey);
+
+        if (autoCreate) {
+            log.info("Auto-creating infrastructure for queue: {}", resolvedQueueName);
+            // Setup Rabbit MQ infrastructure configuration
+            infrastructure.setup(amqpAdmin, exchangeName, exchangeType, resolvedQueueName, resolvedRoutingKey);
+        } else {
+            log.info("Auto-creation disabled for queue: {}, ensure it exists manually", resolvedQueueName);
+        }
 
         // Create the message listener
         createMessageListener(bean, method, resolvedQueueName, annotation.minConsumers(), annotation.maxConsumers());
     }
 
+    /**
+     * Creates and starts a message listener for the given method.
+     */
     private void createMessageListener(final Object bean,
                                        final Method method,
                                        final String queueName,
@@ -106,12 +129,8 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
             final SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
             container.setQueueNames(queueName);
             container.setMessageListener(listenerAdapter);
-
-            // Set up error handling
-            container.setErrorHandler(t -> {
-                log.error("Error in message listener for queue {}: {}", queueName, t.getMessage(), t);
-            });
-
+            container.setErrorHandler(t ->
+                    log.error("Error in message listener for queue {}: {}", queueName, t.getMessage(), t));
             // Configure to not fail if queue doesn't exist yet
             container.setMissingQueuesFatal(false);
 
@@ -127,9 +146,9 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
             }
 
             container.start();
-            log.debug("Started message listener for queue: {}", queueName);
+            log.info("Started message listener for queue: {} and method: {}", queueName, method.getName());
         } catch (Exception e) {
-            log.error("Failed to create message listener for queue: {}", queueName, e);
+            log.error("Failed to create listener for queue {}: {}", queueName, e.getMessage(), e);
         }
     }
 

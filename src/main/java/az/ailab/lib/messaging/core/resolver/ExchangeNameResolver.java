@@ -1,6 +1,6 @@
 package az.ailab.lib.messaging.core.resolver;
 
-import org.springframework.util.Assert;
+import io.micrometer.common.util.StringUtils;
 
 /**
  * Utility class for resolving exchange names based on provided parameters and configuration.
@@ -27,9 +27,7 @@ public class ExchangeNameResolver {
      * @throws IllegalArgumentException if the exchange name is invalid
      */
     public String resolveExchangeName(final String exchange) {
-        Assert.notNull(exchange, "Exchange name must not be null");
-
-        if (exchange.isEmpty()) {
+        if (StringUtils.isBlank(exchange)) {
             throw new IllegalArgumentException("Exchange name must not be empty");
         }
 
