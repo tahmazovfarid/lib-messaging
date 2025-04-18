@@ -1,5 +1,6 @@
 package az.ailab.lib.messaging.annotation;
 
+import az.ailab.lib.messaging.config.ProxyClassGenerationChecker;
 import az.ailab.lib.messaging.config.RabbitMQConfig;
 import az.ailab.lib.messaging.core.RabbitMQInfrastructure;
 import java.lang.annotation.Documented;
