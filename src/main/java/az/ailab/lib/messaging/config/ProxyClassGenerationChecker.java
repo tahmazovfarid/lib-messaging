@@ -7,6 +7,7 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ConfigurableBootstrapContext;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringApplicationRunListener;
 import org.springframework.core.env.ConfigurableEnvironment;
 
@@ -17,6 +18,10 @@ public class ProxyClassGenerationChecker implements SpringApplicationRunListener
     private static final String JAVA_8_PREFIX = "1.8";
     private static final String JAVA_16_OPTION = "--illegal-access=permit";
     private static final String JAVA_17_OPTION = "--add-opens=java.base/java.lang=ALL-UNNAMED";
+
+    public ProxyClassGenerationChecker(SpringApplication application, String[] args) {
+
+    }
 
     @Override
     public void environmentPrepared(ConfigurableBootstrapContext bootstrapContext, ConfigurableEnvironment environment) {
