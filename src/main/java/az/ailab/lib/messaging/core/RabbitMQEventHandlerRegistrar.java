@@ -2,6 +2,7 @@ package az.ailab.lib.messaging.core;
 
 import az.ailab.lib.messaging.annotation.RabbitEventHandler;
 import az.ailab.lib.messaging.annotation.RabbitEventListener;
+import az.ailab.lib.messaging.core.adapter.PayloadAwareMessageListenerAdapter;
 import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
 import az.ailab.lib.messaging.core.resolver.QueueNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
@@ -125,7 +126,7 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
                                        final int minConsumers,
                                        final int maxConsumers) {
         try {
-            final MessageListenerAdapter listenerAdapter = new MessageListenerAdapter(bean);
+            final MessageListenerAdapter listenerAdapter = new PayloadAwareMessageListenerAdapter(bean);
             listenerAdapter.setDefaultListenerMethod(method.getName());
             listenerAdapter.setMessageConverter(messageConverter);
 
