@@ -30,17 +30,22 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
     @SneakyThrows
     @Override
     protected Object invokeListenerMethod(String methodName, Object[] arguments, Message originalMessage) {
-        Method method = findMethodByNameOnly(methodName);
-        if (method != null) {
-            Object[] convertedArgs = convertArguments(arguments, method);
-            return method.invoke(getDelegate(), convertedArgs);
+        log.info("Attempting to invoke method: {}", methodName);
+        Method method = findMethodByNameOnly(methodName, Arrays.stream(arguments)
+                .map(arg -> arg != null ? arg.getClass() : null)
+                .toArray(Class<?>[]::new));
+        if (method == null) {
+            log.error("Method: {} was not found!", methodName);
+            throw new IllegalArgumentException("Invalid method: " + methodName);
         }
-        return super.invokeListenerMethod(methodName, arguments, originalMessage);
+        Object[] convertedArgs = convertArguments(arguments, method);
+        return method.invoke(getDelegate(), convertedArgs);
     }
 
-    private Method findMethodByNameOnly(String methodName) {
+    private Method findMethodByNameOnly(String methodName, Class<?>[] argumentTypes) {
         return Arrays.stream(getDelegate().getClass().getMethods())
-                .filter(method -> method.getName().equals(methodName))
+                .filter(method -> method.getName().equals(methodName)
+                        && Arrays.equals(method.getParameterTypes(), argumentTypes))
                 .findFirst()
                 .orElse(null);
     }
@@ -48,7 +53,7 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
     private Object[] convertArguments(Object[] arguments, Method method) {
         Class<?>[] paramTypes = method.getParameterTypes();
         if (arguments == null || arguments.length != paramTypes.length) {
-            return arguments; // Return original if no conversion is needed
+            return arguments;
         }
 
         Object[] converted = new Object[arguments.length];
@@ -62,20 +67,20 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
         if (arg == null || targetType.isAssignableFrom(arg.getClass())) {
             return arg; // No conversion needed
         }
+        return deserialize(arg, targetType);
+    }
 
+    private <T> T deserialize(Object source, Class<T> targetType) {
         try {
-            if (arg instanceof byte[] bytes) {
-                // Deserialize raw byte array directly
+            if (source instanceof byte[] bytes) {
                 return objectMapper.readValue(bytes, targetType);
-            } else if (arg instanceof Message message) {
-                // Extract body from Message object and deserialize
+            } else if (source instanceof Message message) {
                 return objectMapper.readValue(message.getBody(), targetType);
             } else {
-                // Fallback: serialize to JSON and deserialize into target type
-                return objectMapper.readValue(objectMapper.writeValueAsBytes(arg), targetType);
+                return objectMapper.readValue(objectMapper.writeValueAsBytes(source), targetType);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to convert argument for method: " + methodName, e);
+            throw new RuntimeException("Failed to deserialize: " + targetType, e);
         }
     }
 
