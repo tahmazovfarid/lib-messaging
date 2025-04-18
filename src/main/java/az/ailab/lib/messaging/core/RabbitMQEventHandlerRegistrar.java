@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.listener.ConditionalRejectingErrorHandler;
-import org.springframework.amqp.rabbit.listener.FatalExceptionStrategy;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.amqp.support.converter.MessageConversionException;
@@ -120,15 +119,14 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
     /**
      * Creates and starts a message listener for the given method.
      */
-    private void createMessageListener(final Object bean,
+    private void createMessageListener(final Object delegate,
                                        final Method method,
                                        final String queueName,
                                        final int minConsumers,
                                        final int maxConsumers) {
         try {
-            final MessageListenerAdapter listenerAdapter = new PayloadAwareMessageListenerAdapter(bean);
-            listenerAdapter.setDefaultListenerMethod(method.getName());
-            listenerAdapter.setMessageConverter(messageConverter);
+            final MessageListenerAdapter listenerAdapter =
+                    new PayloadAwareMessageListenerAdapter(delegate, messageConverter, method);
 
             final SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
             container.setQueueNames(queueName);

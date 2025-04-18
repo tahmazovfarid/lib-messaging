@@ -1,58 +1,82 @@
 package az.ailab.lib.messaging.core.adapter;
 
-import com.rabbitmq.client.Channel;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import lombok.NonNull;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
-import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.amqp.support.converter.MessageConverter;
 
 /**
- * Custom MessageListenerAdapter that handles @Payload annotation
- * and applies conversion for the first matching parameter.
+ * Custom MessageListenerAdapter that dynamically converts payloads
+ * and invokes listener methods by name only.
  */
 @Slf4j
 public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
 
-    public PayloadAwareMessageListenerAdapter(Object delegate) {
+    private final ObjectMapper objectMapper;
+
+    public PayloadAwareMessageListenerAdapter(final Object delegate,
+                                              final MessageConverter messageConverter,
+                                              final Method method) {
         super(delegate);
+        this.objectMapper = new ObjectMapper();
+        this.setMessageConverter(messageConverter);
+        this.setDefaultListenerMethod(method.getName());
     }
 
+    @SneakyThrows
     @Override
-    protected Object[] buildListenerArguments(Object extractedMessage,
-                                              Channel channel,
-                                              Message message) {
-        try {
-            Method targetMethod = determineTargetMethod(getDefaultListenerMethod());
-            if (targetMethod != null) {
-                return Arrays.stream(targetMethod.getParameters())
-                        .filter(param -> param.isAnnotationPresent(Payload.class))
-                        .findFirst()
-                        .map(param -> new Object[] {getMessageConverter().fromMessage(message)})
-                        .orElseGet(() -> super.buildListenerArguments(extractedMessage, channel, message));
-            }
-        } catch (Exception e) {
-            log.warn("Unable to build listener arguments based on @Payload: {}", e.getMessage());
+    protected Object invokeListenerMethod(String methodName, Object[] arguments, Message originalMessage) {
+        Method method = findMethodByNameOnly(methodName);
+        if (method != null) {
+            Object[] convertedArgs = convertArguments(arguments, method);
+            return method.invoke(getDelegate(), convertedArgs);
         }
-
-        return super.buildListenerArguments(extractedMessage, channel, message);
+        return super.invokeListenerMethod(methodName, arguments, originalMessage);
     }
 
-    /**
-     * Attempts to find the first method with the given name
-     * and a parameter annotated with @Payload.
-     */
-    private Method determineTargetMethod(@NonNull String methodName) {
-        Class<?> delegateClass = getDelegate().getClass();
-
-        return Arrays.stream(delegateClass.getMethods())
+    private Method findMethodByNameOnly(String methodName) {
+        return Arrays.stream(getDelegate().getClass().getMethods())
                 .filter(method -> method.getName().equals(methodName))
-                .filter(method -> Arrays.stream(method.getParameters())
-                        .anyMatch(param -> param.isAnnotationPresent(Payload.class)))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private Object[] convertArguments(Object[] arguments, Method method) {
+        Class<?>[] paramTypes = method.getParameterTypes();
+        if (arguments == null || arguments.length != paramTypes.length) {
+            return arguments; // Return original if no conversion is needed
+        }
+
+        Object[] converted = new Object[arguments.length];
+        for (int i = 0; i < arguments.length; i++) {
+            converted[i] = convertArgument(arguments[i], paramTypes[i], method.getName());
+        }
+        return converted;
+    }
+
+    private Object convertArgument(Object arg, Class<?> targetType, String methodName) {
+        if (arg == null || targetType.isAssignableFrom(arg.getClass())) {
+            return arg; // No conversion needed
+        }
+
+        try {
+            if (arg instanceof byte[] bytes) {
+                // Deserialize raw byte array directly
+                return objectMapper.readValue(bytes, targetType);
+            } else if (arg instanceof Message message) {
+                // Extract body from Message object and deserialize
+                return objectMapper.readValue(message.getBody(), targetType);
+            } else {
+                // Fallback: serialize to JSON and deserialize into target type
+                return objectMapper.readValue(objectMapper.writeValueAsBytes(arg), targetType);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to convert argument for method: " + methodName, e);
+        }
     }
 
 }
