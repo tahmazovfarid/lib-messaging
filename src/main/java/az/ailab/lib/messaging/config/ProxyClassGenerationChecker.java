@@ -1,9 +1,6 @@
 package az.ailab.lib.messaging.config;
 
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ConfigurableBootstrapContext;
@@ -54,49 +51,13 @@ public class ProxyClassGenerationChecker implements SpringApplicationRunListener
         List<String> jvmArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
         boolean hasOption = jvmArgs.stream().anyMatch(arg -> arg.contains(requiredOption));
 
-        if (!hasOption && !canGenerateProxy()) {
+        if (!hasOption) {
             log.error("Required JVM option for Java {} is missing: {}", javaVersion, requiredOption);
             log.error("➡ Add this to your VM options and restart the app: {}", requiredOption);
             log.error("➡ Example: java {} -jar your-app.jar", requiredOption);
             System.exit(1);
         } else {
-            log.debug("Proxy generation succeeded for Java {} (option present or proxy works)", javaVersion);
-        }
-    }
-
-    @SuppressWarnings("all")
-    private boolean canGenerateProxy() {
-        try {
-            InvocationHandler handler = new SimpleInvocationHandler();
-            Object proxy = Proxy.newProxyInstance(
-                    Thread.currentThread().getContextClassLoader(),
-                    new Class[] { TestInterface.class },
-                    handler
-            );
-
-            proxy.toString(); // Will invoke the overridden toString() in handler
-            return true;
-        } catch (Throwable t) {
-            log.debug("Proxy generation failed: {}", t.getMessage(), t);
-            return false;
-        }
-    }
-
-    private interface TestInterface {
-        String toString();
-    }
-
-    @SuppressWarnings("all")
-    private static class SimpleInvocationHandler implements InvocationHandler {
-        @Override
-        public Object invoke(Object proxy, Method method, Object[] args) {
-            if ("toString".equals(method.getName())) {
-                return "ProxyTest";
-            }
-
-            Class<?> returnType = method.getReturnType();
-
-            return null;
+            log.debug("Proxy generation succeeded for Java {} (option present)", javaVersion);
         }
     }
 
