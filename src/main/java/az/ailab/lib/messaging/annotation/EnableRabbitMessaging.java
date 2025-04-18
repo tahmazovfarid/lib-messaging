@@ -1,6 +1,5 @@
 package az.ailab.lib.messaging.annotation;
 
-import az.ailab.lib.messaging.config.ProxyClassGenerationChecker;
 import az.ailab.lib.messaging.config.RabbitMQConfig;
 import az.ailab.lib.messaging.core.RabbitMQInfrastructure;
 import java.lang.annotation.Documented;
@@ -64,7 +63,6 @@ import org.springframework.context.annotation.Import;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Import(value = {RabbitMQInfrastructure.class, RabbitMQConfig.class})
-@CheckProxyClassGeneration
 public @interface EnableRabbitMessaging {
     // No parameters needed as all configuration comes from properties
 }
