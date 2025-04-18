@@ -30,12 +30,12 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
     @SneakyThrows
     @Override
     protected Object invokeListenerMethod(String methodName, Object[] arguments, Message originalMessage) {
-        log.info("Attempting to invoke method: {}", methodName);
+        log.debug("Attempting to invoke method: {}", methodName);
         Method method = findMethodByNameOnly(methodName, Arrays.stream(arguments)
                 .map(arg -> arg != null ? arg.getClass() : null)
                 .toArray(Class<?>[]::new));
         if (method == null) {
-            log.error("Method: {} was not found!", methodName);
+            log.error("Method: {} with args: {} was not found!", methodName, arguments);
             throw new IllegalArgumentException("Invalid method: " + methodName);
         }
         Object[] convertedArgs = convertArguments(arguments, method);
