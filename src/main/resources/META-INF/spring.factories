@@ -1,0 +1,1 @@
+org.springframework.boot.SpringApplicationRunListener=az.ailab.lib.messaging.config.ProxyClassGenerationChecker
