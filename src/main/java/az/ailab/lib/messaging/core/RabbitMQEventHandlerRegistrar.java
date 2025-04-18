@@ -6,6 +6,7 @@ import az.ailab.lib.messaging.core.adapter.PayloadAwareMessageListenerAdapter;
 import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
 import az.ailab.lib.messaging.core.resolver.QueueNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Method;
 import java.util.Map;
 import lombok.NonNull;
@@ -44,6 +45,7 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
     private final RoutingKeyResolver routingKeyResolver;
     private final AmqpAdmin amqpAdmin;
     private final RabbitMQInfrastructure infrastructure;
+    private final ObjectMapper objectMapper;
 
     /**
      * Triggers when Spring context is fully initialized.
@@ -126,7 +128,7 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
                                        final int maxConsumers) {
         try {
             final MessageListenerAdapter listenerAdapter =
-                    new PayloadAwareMessageListenerAdapter(delegate, messageConverter, method);
+                    new PayloadAwareMessageListenerAdapter(objectMapper, delegate, messageConverter, method);
 
             final SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
             container.setQueueNames(queueName);
