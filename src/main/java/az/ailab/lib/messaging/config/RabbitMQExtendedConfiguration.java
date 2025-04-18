@@ -39,7 +39,6 @@ public class RabbitMQExtendedConfiguration {
      * @return the message converter
      */
     @Bean
-    @ConditionalOnMissingBean
     public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
         return new Jackson2JsonMessageConverter(objectMapper);
     }
