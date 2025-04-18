@@ -3,7 +3,6 @@ package az.ailab.lib.messaging.core.adapter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.Arrays;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
@@ -47,11 +46,10 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
                                               final Object delegate,
                                               final MessageConverter messageConverter,
                                               final Method method) {
-        super(delegate);
+        super(delegate, messageConverter);
+        super.setDefaultListenerMethod(method.getName());
         this.objectMapper = objectMapper;
         this.method = method;
-        this.setMessageConverter(messageConverter);
-        this.setDefaultListenerMethod(method.getName());
     }
 
     /**
@@ -66,7 +64,7 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
     @SneakyThrows
     @Override
     protected Object invokeListenerMethod(String methodName, Object[] arguments, Message originalMessage) {
-        log.debug("Invoking method: {} with arguments: {}", methodName, Arrays.toString(arguments));
+        log.debug("Invoking method: {}", method.getName());
 
         try {
             Object[] preparedArguments = prepareArguments(method, arguments, originalMessage);
@@ -98,6 +96,7 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
                 preparedArgs[i] = resolveFallbackArgument(arguments, i);
             }
         }
+        // I want to parse payload type to the EventMessage generic type
 
         return preparedArgs;
     }
