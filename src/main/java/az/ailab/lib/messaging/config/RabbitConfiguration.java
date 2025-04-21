@@ -1,6 +1,7 @@
 package az.ailab.lib.messaging.config;
 
-import az.ailab.lib.messaging.config.properties.RabbitMQExtendedProperties;
+import az.ailab.lib.messaging.config.properties.RabbitExtendedProperties;
+import az.ailab.lib.messaging.core.RabbitInfrastructure;
 import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
 import az.ailab.lib.messaging.core.resolver.QueueNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
@@ -28,11 +29,11 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @EnableRabbit
-@EnableConfigurationProperties(RabbitMQExtendedProperties.class)
+@EnableConfigurationProperties(RabbitExtendedProperties.class)
 @RequiredArgsConstructor
-public class RabbitMQExtendedConfiguration {
+public class RabbitConfiguration {
 
-    private final RabbitMQExtendedProperties properties;
+    private final RabbitExtendedProperties properties;
 
     /**
      * Creates a JSON message converter for converting Java objects to and from JSON.
@@ -90,7 +91,6 @@ public class RabbitMQExtendedConfiguration {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(messageConverter);
-        // We're not setting concurrency here as it can be configured per handler
         factory.setConcurrentConsumers(1);
         factory.setMaxConcurrentConsumers(10);
         return factory;

@@ -60,10 +60,10 @@ import java.lang.annotation.Target;
  *   <li>Messages published to the exchange will be routed to the appropriate handler method based on the routing key</li>
  * </ul>
  *
+ * @author tahmazovfarid
  * @see RabbitEventHandler
  * @see RabbitEventPublisher
  * @see ExchangeType
- * @author tahmazovfarid
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -89,11 +89,10 @@ public @interface RabbitEventListener {
 
     /**
      * Indicates whether the exchange should be automatically created if it does not already exist.
-     * <p>
-     * When set to {@code true}, the exchange will be declared at application startup. This is useful
+     * <p>When set to {@code true}, the exchange will be declared at application startup. This is useful
      * in development or dynamic environments where exchanges are not pre-provisioned.
      * In production, it's common to manage exchanges manually and set this to {@code false}
-     * to avoid accidental creation or misconfiguration.
+     * to avoid accidental creation or misconfiguration.</p>
      *
      * @return {@code true} if the exchange should be auto-created; {@code false} otherwise
      */

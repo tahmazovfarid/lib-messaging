@@ -27,16 +27,25 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
 
 /**
- * Responsible for registering RabbitMQ listeners annotated with
- * {@link RabbitEventListener} and {@link RabbitEventHandler}.
- * Scans all beans after Spring context is refreshed,
- * sets up exchanges, queues, bindings, and listeners accordingly.
+ * Listens for Spring's ContextRefreshedEvent and automatically registers
+ * RabbitMQ message listeners for beans annotated with {@link az.ailab.lib.messaging.annotation.RabbitEventListener}.
+ * <p>
+ * Scans each listener bean for methods annotated with {@link az.ailab.lib.messaging.annotation.RabbitEventHandler},
+ * resolves exchange and queue names, optionally creates the necessary infrastructure,
+ * and starts a {@link org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer} for each handler.
+ * </p>
+ *
+ * <p>
+ * This registrar centralizes event listener setup, ensuring consistent configuration
+ * of exchanges, queues, bindings, error handling, and concurrency settings.
+ * </p>
+ *
  * @author tahmazovfarid
  */
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class RabbitMQEventHandlerRegistrar implements ApplicationListener<ContextRefreshedEvent> {
+public class RabbitEventHandlerRegistrar implements ApplicationListener<ContextRefreshedEvent> {
 
     private final ConnectionFactory connectionFactory;
     private final MessageConverter messageConverter;
@@ -44,22 +53,24 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
     private final QueueNameResolver queueNameResolver;
     private final RoutingKeyResolver routingKeyResolver;
     private final AmqpAdmin amqpAdmin;
-    private final RabbitMQInfrastructure infrastructure;
+    private final RabbitInfrastructure infrastructure;
     private final ObjectMapper objectMapper;
 
     /**
-     * Triggers when Spring context is fully initialized.
-     * Scans for @RabbitEventListener beans and processes their handler methods.
+     * Handles the ContextRefreshedEvent after the Spring application context is initialized.
+     * <p>
+     * Scans for beans annotated with {@link az.ailab.lib.messaging.annotation.RabbitEventListener}
+     * and processes their event handler methods.
+     * </p>
+     *
+     * @param event the ContextRefreshedEvent signaling context initialization
      */
     @Override
     public void onApplicationEvent(@NonNull final ContextRefreshedEvent event) {
         ApplicationContext ctx = event.getApplicationContext();
         log.debug("Starting RabbitMQ listener registration process");
 
-        // Get all beans with RabbitEventListener annotation
-        Map<String, Object> listeners = ctx.getBeansWithAnnotation(RabbitEventListener.class);
-
-        listeners.values().forEach(bean -> {
+        ctx.getBeansWithAnnotation(RabbitEventListener.class).values().forEach(bean -> {
             RabbitEventListener classAnnotation = AnnotationUtils.findAnnotation(bean.getClass(), RabbitEventListener.class);
             if (classAnnotation != null) {
                 log.debug("Processing bean: {} with RabbitEventListener", bean.getClass().getName());
@@ -68,6 +79,15 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
         });
     }
 
+    /**
+     * Processes all methods of the given bean that are annotated with {@link az.ailab.lib.messaging.annotation.RabbitEventHandler}.
+     * <p>
+     * Resolves exchange info from the class-level annotation and iterates through handler methods.
+     * </p>
+     *
+     * @param bean             the target bean instance
+     * @param classAnnotation  the RabbitEventListener annotation present on the bean class
+     */
     private void processEventHandlerAnnotations(final Object bean, final RabbitEventListener classAnnotation) {
         final ExchangeType exchangeType = classAnnotation.exchangeType();
         final String resolvedExchangeName = exchangeNameResolver.resolveExchangeName(classAnnotation.exchange());
@@ -89,6 +109,17 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
         });
     }
 
+    /**
+     * Processes a single handler method: resolves queue details, optionally auto-creates infrastructure,
+     * and registers the message listener.
+     *
+     * @param bean            the target bean instance
+     * @param method          the handler method to invoke on message receive
+     * @param annotation      the RabbitEventHandler annotation on the method
+     * @param exchangeName    the resolved exchange name
+     * @param exchangeType    the type of exchange to bind
+     * @param autoCreate      flag indicating whether to auto-create queues/exchanges
+     */
     private void processEventHandlerMethod(final Object bean,
                                            final Method method,
                                            final RabbitEventHandler annotation,
@@ -107,11 +138,11 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
         log.debug("Resolved queue: {}, routingKey: {}", resolvedQueueName, resolvedRoutingKey);
 
         if (autoCreate) {
-            log.info("Auto-creating infrastructure for queue: {}", resolvedQueueName);
+            log.debug("Auto-creating infrastructure for queue: {}", resolvedQueueName);
             // Setup Rabbit MQ infrastructure configuration
             infrastructure.setup(amqpAdmin, exchangeName, exchangeType, resolvedQueueName, resolvedRoutingKey);
         } else {
-            log.info("Auto-creation disabled for queue: {}, ensure it exists manually", resolvedQueueName);
+            log.debug("Auto-creation disabled for queue: {}, ensure it exists manually", resolvedQueueName);
         }
 
         // Create the message listener
@@ -119,7 +150,16 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
     }
 
     /**
-     * Creates and starts a message listener for the given method.
+     * Creates and starts a message listener container for the specified queue and handler method.
+     * <p>
+     * Configures message conversion, error handling, and optional concurrency settings.
+     * </p>
+     *
+     * @param delegate      the target bean instance to delegate message handling
+     * @param method        the handler method to invoke on incoming messages
+     * @param queueName     the name of the queue to listen to
+     * @param minConsumers  minimum number of concurrent consumers (0 to disable concurrency)
+     * @param maxConsumers  maximum number of concurrent consumers (0 to use minConsumers as max)
      */
     private void createMessageListener(final Object delegate,
                                        final Method method,
@@ -128,22 +168,17 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
                                        final int maxConsumers) {
         try {
             final MessageListenerAdapter listenerAdapter =
-                    new PayloadAwareMessageListenerAdapter(objectMapper, delegate, messageConverter, method);
+                    new PayloadAwareMessageListenerAdapter(queueName, objectMapper, delegate, messageConverter, method);
 
             final SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
             container.setQueueNames(queueName);
             container.setMessageListener(listenerAdapter);
             // Configure to not fail if queue doesn't exist yet
             container.setMissingQueuesFatal(false);
-            container.setErrorHandler(new ConditionalRejectingErrorHandler(t -> {
-                Throwable cause = t.getCause();
-                if (cause instanceof MessageConversionException ||
-                        cause instanceof com.fasterxml.jackson.databind.JsonMappingException) {
-                    log.warn("Invalid JSON message for queue '{}', skipping message: {}", queueName, cause.getMessage());
-                    return true;
-                }
-                return false;
-            }));
+            container.setErrorHandler(t -> {
+                log.error("Listener error on queue '{}', stopping container: {}", queueName, t.getMessage(), t);
+                container.stop();
+            });
 
             // Configure concurrency if specified
             if (minConsumers > 0) {
@@ -157,7 +192,7 @@ public class RabbitMQEventHandlerRegistrar implements ApplicationListener<Contex
             }
 
             container.start();
-            log.info("Started message listener for queue: {} and method: {}", queueName, method.getName());
+            log.info("Started message listener for queue '{}'", queueName);
         } catch (Exception e) {
             log.error("Failed to create listener for queue {}: {}", queueName, e.getMessage(), e);
         }

@@ -4,12 +4,8 @@ import az.ailab.lib.messaging.core.EventMessage;
 import java.util.UUID;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
-import org.aspectj.lang.annotation.Aspect;
 import org.slf4j.MDC;
-import org.springframework.stereotype.Component;
 
-@Aspect
-@Component
 public class MessagingAspect {
 
     private static final ThreadLocal<String> correlationIdHolder = new ThreadLocal<>();

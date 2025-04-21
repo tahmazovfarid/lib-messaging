@@ -29,7 +29,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 @Getter
 @ConfigurationProperties(prefix = "spring.rabbitmq.config")
-public class RabbitMQExtendedProperties {
+public class RabbitExtendedProperties {
 
     /**
      * Prefix used for all queues.

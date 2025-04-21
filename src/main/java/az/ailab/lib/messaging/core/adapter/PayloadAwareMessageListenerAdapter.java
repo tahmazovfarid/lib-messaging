@@ -1,29 +1,28 @@
 package az.ailab.lib.messaging.core.adapter;
 
+import az.ailab.lib.messaging.core.EventMessage;
+import az.ailab.lib.messaging.error.DeserializationException;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import lombok.SneakyThrows;
+import java.nio.charset.StandardCharsets;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
+import org.springframework.amqp.rabbit.support.ListenerExecutionFailedException;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.messaging.handler.annotation.Payload;
 
 /**
- * A custom implementation of the {@link MessageListenerAdapter} class that dynamically resolves method
- * arguments based on the {@link Payload} annotation and invokes listener methods accordingly.
+ * A custom implementation of {@link MessageListenerAdapter} that dynamically resolves
+ * the first method argument as a deserialized payload and invokes the listener method.
  *
- * <p>This adapter simplifies the handling of RabbitMQ messages by automatically converting the payload
- * to the required method parameter types using {@link ObjectMapper}. It supports both annotation-based
- * argument binding and default positional argument resolution.</p>
+ * <p>This adapter simplifies handling of RabbitMQ messages by converting message payload
+ * to the required method parameter types using {@link ObjectMapper}.</p>
  *
- * <h2>Features:</h2>
- * <ul>
- *     <li>Automatically deserializes message payloads into method arguments using Spring's {@link Payload} annotation.</li>
- *     <li>Falls back to positional argument handling when no annotations are present.</li>
- *     <li>Provides detailed logging for debugging and troubleshooting invocation errors.</li>
- * </ul>
+ * <p>Currently, only the first parameter is considered as payload, others are ignored.</p>
  *
  * @author tahmazovfarid
  */
@@ -35,14 +34,19 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
      */
     private final ObjectMapper objectMapper;
     private final Method method;
+    private final String queueName;
 
     /**
      * Creates a new instance of {@link PayloadAwareMessageListenerAdapter}.
      *
-     * @param delegate         The target listener object that contains the methods to be invoked.
-     * @param messageConverter The {@link MessageConverter} used for converting message payloads.
+     * @param queueName        Name of the queue for logging context.
+     * @param objectMapper     Jackson ObjectMapper used for deserialization.
+     * @param delegate         Target listener object that contains the method.
+     * @param messageConverter Spring AMQP message converter.
+     * @param method           Target method to invoke on message arrival.
      */
-    public PayloadAwareMessageListenerAdapter(final ObjectMapper objectMapper,
+    public PayloadAwareMessageListenerAdapter(final String queueName,
+                                              final ObjectMapper objectMapper,
                                               final Object delegate,
                                               final MessageConverter messageConverter,
                                               final Method method) {
@@ -50,93 +54,119 @@ public class PayloadAwareMessageListenerAdapter extends MessageListenerAdapter {
         super.setDefaultListenerMethod(method.getName());
         this.objectMapper = objectMapper;
         this.method = method;
+        this.queueName = queueName;
     }
 
     /**
-     * Dynamically invokes the listener method by resolving arguments based on their annotations and types.
-     * This method handles payload deserialization for arguments annotated with {@link Payload}.
+     * Resolves and prepares arguments for the listener method, then invokes it.
      *
-     * @param methodName      The name of the listener method to be invoked.
-     * @param arguments       The arguments provided for the method.
-     * @param originalMessage The original RabbitMQ {@link Message} from which the payload is extracted.
-     * @return The result of the invoked method, if any.
+     * @param methodName      The name of the method to invoke.
+     * @param arguments       Ignored; arguments are prepared from message.
+     * @param originalMessage The original RabbitMQ message.
+     * @return The result of the invoked method.
+     * @throws ListenerExecutionFailedException If invocation fails.
      */
-    @SneakyThrows
     @Override
     protected Object invokeListenerMethod(String methodName, Object[] arguments, Message originalMessage) {
-        log.debug("Invoking method: {}", method.getName());
+        log.trace("Invoking listener method '{}' on delegate class '{}'",
+                method.getName(), getDelegate().getClass().getSimpleName());
 
         try {
-            Object[] preparedArguments = prepareArguments(method, arguments, originalMessage);
-            return method.invoke(getDelegate(), preparedArguments);
-        } catch (Exception ex) {
-            log.error("Failed to invoke method: {} - {}", methodName, ex.getMessage(), ex);
-            throw ex;
+            Object[] args = prepareArguments(method, originalMessage);
+            return method.invoke(getDelegate(), args);
+        } catch (IllegalAccessException e) {
+            log.error("Illegal access to method: {}", method.getName(), e);
+            throw new ListenerExecutionFailedException("Access error while invoking listener method", e);
+        } catch (InvocationTargetException e) {
+            Throwable targetException = e.getTargetException();
+            log.error("Exception while invoking listener method: {}", method.getName(), targetException);
+            throw new ListenerExecutionFailedException("Exception during listener method invocation", targetException);
+        } catch (Exception e) {
+            log.error("Unexpected error during listener invocation", e);
+            throw new ListenerExecutionFailedException("Unexpected error", e);
         }
+
     }
 
     /**
-     * Prepares the arguments for the target method by resolving payloads and positional arguments.
+     * Prepares arguments for the listener method by deserializing only the first parameter.
+     * All other parameters will be passed as {@code null}.
      *
-     * @param method          The target listener method.
-     * @param arguments       The raw arguments passed to the method.
-     * @param originalMessage The original RabbitMQ {@link Message}.
-     * @return An array of prepared arguments that match the method parameters.
+     * @param method          Target listener method.
+     * @param originalMessage The original RabbitMQ message.
+     * @return An array of resolved method arguments.
      */
-    private Object[] prepareArguments(Method method, Object[] arguments, Message originalMessage) {
+    private Object[] prepareArguments(Method method, Message originalMessage) {
         Parameter[] parameters = method.getParameters();
-        Object[] preparedArgs = new Object[parameters.length];
+        Object[] resolvedArgs = new Object[parameters.length];
 
-        for (int i = 0; i < parameters.length; i++) {
-            Parameter parameter = parameters[i];
-
-            if (parameter.isAnnotationPresent(Payload.class)) {
-                preparedArgs[i] = deserializePayload(originalMessage, parameter.getType());
-            } else {
-                preparedArgs[i] = resolveFallbackArgument(arguments, i);
-            }
+        if (parameters.length > 0) {
+            Class<?> payloadType = parameters[0].getType();
+            resolvedArgs[0] = deserializePayload(originalMessage, payloadType);
         }
-        // I want to parse payload type to the EventMessage generic type
 
-        return preparedArgs;
+        return resolvedArgs;
     }
 
     /**
-     * Deserializes the payload from the RabbitMQ {@link Message} into the specified target type.
+     * Deserializes the message payload into the expected target type.
      *
-     * <p>This method uses {@link ObjectMapper} to convert the raw byte[] payload into the target type.
-     * If deserialization fails, an exception is logged and thrown.</p>
-     *
-     * @param originalMessage The original message containing the payload.
-     * @param targetType      The expected Java type for the payload.
-     * @return An object of the specified target type, deserialized from the payload.
-     * @throws RuntimeException If there is a deserialization error.
+     * @param originalMessage The original RabbitMQ message.
+     * @param targetType      The expected Java class type for the payload.
+     * @return Deserialized payload object.
+     * @throws DeserializationException If payload cannot be deserialized.
      */
     private Object deserializePayload(Message originalMessage, Class<?> targetType) {
+        String rawMessage = new String(originalMessage.getBody(), StandardCharsets.UTF_8);
+
         try {
-            log.debug("{} to deserializing payload to type: {}", new String(originalMessage.getBody()), targetType.getName());
-            return objectMapper.readValue(originalMessage.getBody(), targetType);
+            return isRawEventMessage(targetType) ?
+                    deserializeRawEventMessage(originalMessage) : deserializeTypedPayload(originalMessage, targetType);
         } catch (Exception e) {
-            log.error("Failed to deserialize payload to type: {}", targetType.getName(), e);
-            throw new RuntimeException("Payload deserialization error", e);
+            log.error("Failed to deserialize message payload to type '{}'. Raw message: {}", targetType.getName(), rawMessage);
+            throw new DeserializationException("Payload deserialization error", e);
         }
     }
 
     /**
-     * Resolves arguments for method parameters when the {@link Payload} annotation is not present.
+     * Deserializes the raw {@link Message} body into an {@link EventMessage} without specifying payload type.
      *
-     * <p>If the argument index is within bounds of the provided argument array, the argument is
-     * returned as is. Otherwise, it defaults to {@code null}.</p>
-     *
-     * @param arguments The original list of provided arguments.
-     * @param index     The index of the parameter for which to resolve the argument.
-     * @return The resolved argument or {@code null} if the index is out of bounds.
+     * @param message The RabbitMQ message to deserialize.
+     * @return The deserialized {@link EventMessage} with raw payload.
+     * @throws IOException If the message body cannot be parsed.
      */
-    private Object resolveFallbackArgument(Object[] arguments, int index) {
-        if (arguments != null && arguments.length > index) {
-            return arguments[index];
-        }
-        return null; // Defaults to null if no argument is available at the specified index
+    private EventMessage<?> deserializeRawEventMessage(Message message) throws IOException {
+        EventMessage<?> eventMessage = objectMapper.readValue(message.getBody(), EventMessage.class);
+        log.info("Received event message from [{}]: {}", queueName, eventMessage.id());
+
+        return eventMessage;
+    }
+
+    /**
+     * Deserializes the {@link Message} body into an {@link EventMessage} with a typed payload.
+     *
+     * @param message    The RabbitMQ message to deserialize.
+     * @param targetType The target class of the payload type.
+     * @return The deserialized payload object from the {@link EventMessage}.
+     * @throws IOException If deserialization fails.
+     */
+    private Object deserializeTypedPayload(Message message, Class<?> targetType) throws IOException {
+        JavaType javaType = objectMapper.getTypeFactory()
+                .constructParametricType(EventMessage.class, targetType);
+        EventMessage<?> eventMessage = objectMapper.readValue(message.getBody(), javaType);
+        log.info("Received event message from [{}]: {}", queueName, eventMessage.id());
+
+        return eventMessage.payload();
+    }
+
+    /**
+     * Checks whether the given class is assignable from {@link EventMessage}.
+     *
+     * @param targetType The class to check.
+     * @return {@code true} if the target type is assignable from {@link EventMessage}, otherwise {@code false}.
+     */
+    private boolean isRawEventMessage(Class<?> targetType) {
+        return EventMessage.class.isAssignableFrom(targetType);
     }
 
 }

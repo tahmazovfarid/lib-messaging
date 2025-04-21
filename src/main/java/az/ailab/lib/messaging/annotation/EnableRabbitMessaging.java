@@ -1,13 +1,17 @@
 package az.ailab.lib.messaging.annotation;
 
-import az.ailab.lib.messaging.config.RabbitMQConfig;
-import az.ailab.lib.messaging.core.RabbitMQInfrastructure;
+import az.ailab.lib.messaging.config.RabbitConfiguration;
+import az.ailab.lib.messaging.core.RabbitEventHandlerRegistrar;
+import az.ailab.lib.messaging.core.RabbitEventListenerRegistrar;
+import az.ailab.lib.messaging.core.RabbitInfrastructure;
+import az.ailab.lib.messaging.core.RabbitPublisherRegistrar;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.springframework.context.annotation.Import;
+import org.springframework.stereotype.Component;
 
 /**
  * Enables RabbitMQ messaging infrastructure in a Spring application.
@@ -47,22 +51,30 @@ import org.springframework.context.annotation.Import;
  *     password: tahmazovfarid
  *     config:
  *       queue-prefix: expertise.user-service # {project_name}.{service_name}
- *       queue-durable: true
- *       exchange-durable: true
  * }</pre>
  *
  * <p>After applying this annotation, you can create event publishers using {@link RabbitEventPublisher}
  * and event listeners using {@link RabbitEventListener} without additional configuration.</p>
  *
  * @author tahmazovfarid
- * @see RabbitEventPublisher
- * @see RabbitEventListener
- * @see RabbitMQConfig
+ * @see RabbitInfrastructure
+ * @see RabbitEventListenerRegistrar
+ * @see RabbitEventHandlerRegistrar
+ * @see RabbitPublisherRegistrar
+ * @see RabbitConfiguration
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Import(value = {RabbitMQInfrastructure.class, RabbitMQConfig.class})
+@Import({
+        RabbitInfrastructure.class,
+        RabbitEventListenerRegistrar.class,
+        RabbitEventHandlerRegistrar.class,
+        RabbitPublisherRegistrar.class,
+        RabbitConfiguration.class
+})
+@Component
 public @interface EnableRabbitMessaging {
+
     // No parameters needed as all configuration comes from properties
 }

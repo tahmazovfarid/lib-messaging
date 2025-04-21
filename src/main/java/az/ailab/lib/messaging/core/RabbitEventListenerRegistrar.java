@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Component;
@@ -25,7 +24,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class RabbitMQEventListenerRegistrar implements ApplicationListener<ContextRefreshedEvent> {
+public class RabbitEventListenerRegistrar implements ApplicationListener<ContextRefreshedEvent> {
 
     private final ExchangeNameResolver exchangeNameResolver;
 
@@ -59,7 +58,7 @@ public class RabbitMQEventListenerRegistrar implements ApplicationListener<Conte
         final String exchangeName = annotation.exchange();
         final String resolvedExchangeName = exchangeNameResolver.resolveExchangeName(exchangeName);
 
-        log.info("Registered listener for exchange: {}", resolvedExchangeName);
+        log.debug("Registered listener for exchange: {}", resolvedExchangeName);
         log.debug("Exchange type specified in annotation: {}", annotation.exchangeType());
     }
 
