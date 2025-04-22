@@ -10,7 +10,9 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.AliasFor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -21,6 +23,12 @@ import org.springframework.stereotype.Component;
  * It's similar to Spring's {@code @EnableJpaRepositories} or {@code @EnableWebMvc} annotations
  * in concept, but for RabbitMQ messaging.</p>
  *
+ * <p>You can specify where to scan for annotated components via one or more of the following:</p>
+ * <ul>
+ *   <li>{@link #scanBasePackages()} — list of package names to scan.</li>
+ * </ul>
+ * <p>If none are provided, the package of the class annotated with {@code @EnableRabbitMessaging}
+ * is used as the default base package.</p>
  * <p>When applied to a Spring {@code @Configuration} class, it:</p>
  * <ul>
  *   <li>Registers necessary beans for RabbitMQ connection and channel management</li>
@@ -31,11 +39,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>Usage example:</p>
  * <pre>{@code
- * @Configuration
- * @EnableRabbitMessaging
- * public class RabbitConfiguration {
- *     // Additional custom configuration if needed
- * }
+ * @EnableRabbitMessaging({"com.acme.service"})
+ * public class RabbitConfig {
+ *     // custom configuration
  * }</pre>
  *
  * <p>All configuration is done through application properties or YAML:</p>
@@ -73,8 +79,24 @@ import org.springframework.stereotype.Component;
         RabbitPublisherRegistrar.class,
         RabbitConfiguration.class
 })
-@Component
+@Configuration
 public @interface EnableRabbitMessaging {
 
-    // No parameters needed as all configuration comes from properties
+    /**
+     * Alias for {@link #scanBasePackages()}.
+     * Direct package names to scan for
+     * {@link org.springframework.stereotype.Component} classes such as
+     * {@link az.ailab.lib.messaging.annotation.RabbitEventListener} and
+     * {@link az.ailab.lib.messaging.annotation.RabbitEventPublisher}.
+     */
+    @AliasFor("scanBasePackages")
+    String[] value() default {};
+
+    /**
+     * Packages to scan for {@link RabbitEventListener} and {@link RabbitEventPublisher} components.
+     * Defaults to the package of the annotated configuration class if empty.
+     */
+    @AliasFor("value")
+    String[] scanBasePackages() default {};
+
 }

@@ -1,10 +1,15 @@
 package az.ailab.lib.messaging.core;
 
+import az.ailab.lib.messaging.annotation.EnableRabbitMessaging;
 import az.ailab.lib.messaging.annotation.RabbitEventPublisher;
 import az.ailab.lib.messaging.core.proxy.DynamicRabbitProxyFactoryBean;
 import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
 import java.beans.Introspector;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.AmqpAdmin;
@@ -85,29 +90,29 @@ public class RabbitPublisherRegistrar implements ImportBeanDefinitionRegistrar, 
                 };
         scanner.addIncludeFilter(new AnnotationTypeFilter(RabbitEventPublisher.class));
 
-        // Derive base package from the importing class name
-        String fullClassName = importingClassMetadata.getClassName();
-        String basePackage = fullClassName.substring(0, fullClassName.lastIndexOf('.'));
+        List<String> basePackages = getBasePackages(importingClassMetadata);
 
-        // Scan and register each discovered interface
-        scanner.findCandidateComponents(basePackage)
-                .forEach(beanDef -> {
-                    String ifaceName = beanDef.getBeanClassName();
-                    try {
-                        Class<?> iface = Class.forName(ifaceName);
-                        registerPublisherBean(registry, iface);
-                        log.debug("Registered publisher bean for interface {}", ifaceName);
-                    } catch (ClassNotFoundException e) {
-                        log.error("Failed to load interface class {}", ifaceName, e);
-                        throw new BeanCreationException("Interface class not found: " + ifaceName, e);
-                    }
-                });
+        for (String basePackage : basePackages) {
+            // Scan and register each discovered interface
+            scanner.findCandidateComponents(basePackage)
+                    .forEach(beanDef -> {
+                        String ifaceName = beanDef.getBeanClassName();
+                        try {
+                            Class<?> iface = Class.forName(ifaceName);
+                            registerPublisherBean(registry, iface);
+                            log.debug("Registered publisher bean for interface {}", ifaceName);
+                        } catch (ClassNotFoundException e) {
+                            log.error("Failed to load interface class {}", ifaceName, e);
+                            throw new BeanCreationException("Interface class not found: " + ifaceName, e);
+                        }
+                    });
+        }
     }
 
     /**
      * Registers a single dynamic proxy bean for the given interface.
      *
-     * @param registry the bean definition registry
+     * @param registry       the bean definition registry
      * @param interfaceClass the interface annotated with {@link az.ailab.lib.messaging.annotation.RabbitEventPublisher}
      * @throws IllegalStateException if a bean with the same name already exists
      */
@@ -164,6 +169,30 @@ public class RabbitPublisherRegistrar implements ImportBeanDefinitionRegistrar, 
         String appName = environment.getProperty("spring.application.name", "unknown");
         log.debug("Using application name '{}' for source of Event", appName);
         return appName;
+    }
+
+    /**
+     * Resolve the list of base‐packages to scan:
+     * 1) if the user supplied scanBasePackages/value on @EnableRabbitMessaging, use those
+     * 2) otherwise fall back to the package of the class that imported this registrar
+     */
+    private List<String> getBasePackages(final AnnotationMetadata importingClassMetadata) {
+        // pull the raw attributes from the @EnableRabbitMessaging annotation
+        final Map<String, Object> attrs = importingClassMetadata
+                .getAnnotationAttributes(EnableRabbitMessaging.class.getName(), false);
+
+        // look for the aliased "value"/"scanBasePackages" attribute
+        String[] pkgs = (attrs != null) ? (String[]) attrs.get("scanBasePackages") : null;
+
+        if (pkgs != null && pkgs.length > 0) {
+            // user explicitly asked for these packages
+            return Arrays.asList(pkgs);
+        }
+
+        // no explicit packages, so derive from the importing class's package
+        String fullClassName = importingClassMetadata.getClassName();
+        String defaultPkg = fullClassName.substring(0, fullClassName.lastIndexOf('.'));
+        return Collections.singletonList(defaultPkg);
     }
 
 }
