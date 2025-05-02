@@ -34,6 +34,8 @@ import org.springframework.context.annotation.Configuration;
  * @see ObjectMapper
  * @see JavaTimeModule
  * @see StdDateFormat
+ *
+ * @author tahmazovfarid
  */
 @Configuration
 public class JacksonConfiguration {

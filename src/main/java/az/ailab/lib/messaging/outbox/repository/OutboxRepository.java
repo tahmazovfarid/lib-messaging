@@ -15,6 +15,7 @@ import java.util.List;
  * Designed to be extended by specific implementations.
  *
  * @param <T> The specific outbox event implementation
+*  @since 1.1 THIS IS BETA VERSION
  * @author tahmazovfarid
  */
 @NoRepositoryBean
@@ -52,4 +53,5 @@ public interface OutboxRepository<T extends OutboxEventDetails> extends JpaRepos
     List<T> findFailedForRetry(
             @Param("status") OutboxStatus status,
             @Param("maxRetries") Integer maxRetries);
+
 }

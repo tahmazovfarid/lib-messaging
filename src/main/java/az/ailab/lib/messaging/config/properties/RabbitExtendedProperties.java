@@ -24,7 +24,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       dead-letter-queue-suffix: .dlq
  * </pre>
  *
- * @since 0.0.1
+ * @since 1.0
+ * @author tahmazovfarid
  */
 @Setter
 @Getter

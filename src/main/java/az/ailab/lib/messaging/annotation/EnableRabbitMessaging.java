@@ -1,19 +1,18 @@
 package az.ailab.lib.messaging.annotation;
 
 import az.ailab.lib.messaging.config.RabbitConfiguration;
-import az.ailab.lib.messaging.core.RabbitEventHandlerRegistrar;
-import az.ailab.lib.messaging.core.RabbitEventListenerRegistrar;
+import az.ailab.lib.messaging.core.listener.annotation.RabbitEventListener;
+import az.ailab.lib.messaging.core.listener.RabbitEventHandlerRegistrar;
 import az.ailab.lib.messaging.core.RabbitInfrastructure;
-import az.ailab.lib.messaging.core.RabbitPublisherRegistrar;
+import az.ailab.lib.messaging.core.publisher.annotation.RabbitEventPublisher;
+import az.ailab.lib.messaging.core.publisher.RabbitPublisherRegistrar;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AliasFor;
-import org.springframework.stereotype.Component;
 
 /**
  * Enables RabbitMQ messaging infrastructure in a Spring application.
@@ -38,10 +37,13 @@ import org.springframework.stereotype.Component;
  * </ul>
  *
  * <p>Usage example:</p>
- * <pre>{@code
- * @EnableRabbitMessaging({"com.acme.service"})
+ * <pre>
+ * {@code
+ * @Configuration
+ * @EnableRabbitMessaging({"az.ailab.msiam.event"})
  * public class RabbitConfig {
  *     // custom configuration
+ * }
  * }</pre>
  *
  * <p>All configuration is done through application properties or YAML:</p>
@@ -49,22 +51,23 @@ import org.springframework.stereotype.Component;
  * # application.yml
  * spring:
  *   application:
- *     name: user-service
+ *     name: iam-service
  *   rabbitmq:
  *     host: localhost
  *     port: 5672
  *     username: tahmazovfarid
  *     password: tahmazovfarid
  *     config:
- *       queue-prefix: expertise.user-service # {project_name}.{service_name}
+ *       queue-prefix: expertise.iam-service # {project_name}.{service_name}
  * }</pre>
  *
  * <p>After applying this annotation, you can create event publishers using {@link RabbitEventPublisher}
  * and event listeners using {@link RabbitEventListener} without additional configuration.</p>
  *
+ * @since 1.0
+ *
  * @author tahmazovfarid
  * @see RabbitInfrastructure
- * @see RabbitEventListenerRegistrar
  * @see RabbitEventHandlerRegistrar
  * @see RabbitPublisherRegistrar
  * @see RabbitConfiguration
@@ -74,20 +77,18 @@ import org.springframework.stereotype.Component;
 @Documented
 @Import({
         RabbitInfrastructure.class,
-        RabbitEventListenerRegistrar.class,
         RabbitEventHandlerRegistrar.class,
         RabbitPublisherRegistrar.class,
         RabbitConfiguration.class
 })
-@Configuration
 public @interface EnableRabbitMessaging {
 
     /**
      * Alias for {@link #scanBasePackages()}.
      * Direct package names to scan for
      * {@link org.springframework.stereotype.Component} classes such as
-     * {@link az.ailab.lib.messaging.annotation.RabbitEventListener} and
-     * {@link az.ailab.lib.messaging.annotation.RabbitEventPublisher}.
+     * {@link RabbitEventListener} and
+     * {@link RabbitEventPublisher}.
      */
     @AliasFor("scanBasePackages")
     String[] value() default {};

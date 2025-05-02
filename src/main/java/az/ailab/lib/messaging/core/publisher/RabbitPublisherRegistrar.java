@@ -1,10 +1,12 @@
-package az.ailab.lib.messaging.core;
+package az.ailab.lib.messaging.core.publisher;
 
 import az.ailab.lib.messaging.annotation.EnableRabbitMessaging;
-import az.ailab.lib.messaging.annotation.RabbitEventPublisher;
-import az.ailab.lib.messaging.core.proxy.DynamicRabbitProxyFactoryBean;
+import az.ailab.lib.messaging.core.RabbitInfrastructure;
+import az.ailab.lib.messaging.core.publisher.annotation.RabbitEventPublisher;
+import az.ailab.lib.messaging.core.publisher.proxy.DynamicRabbitProxyFactoryBean;
 import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.beans.Introspector;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,7 +32,7 @@ import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 /**
- * Registrar that scans for interfaces annotated with {@link az.ailab.lib.messaging.annotation.RabbitEventPublisher}
+ * Registrar that scans for interfaces annotated with {@link RabbitEventPublisher}
  * and registers a dynamic proxy bean for each discovered interface. This allows for publishing events
  * to RabbitMQ using an interface-based approach.
  * <p>
@@ -68,7 +70,7 @@ public class RabbitPublisherRegistrar implements ImportBeanDefinitionRegistrar, 
 
     /**
      * Scans the base package (determined by the importing class metadata) for interfaces annotated with
-     * {@link az.ailab.lib.messaging.annotation.RabbitEventPublisher} and registers a proxy bean definition
+     * {@link RabbitEventPublisher} and registers a proxy bean definition
      * for each one.
      *
      * @param importingClassMetadata metadata of the class that imported this registrar (e.g., the main Spring Boot application class)
@@ -99,6 +101,7 @@ public class RabbitPublisherRegistrar implements ImportBeanDefinitionRegistrar, 
                         String ifaceName = beanDef.getBeanClassName();
                         try {
                             Class<?> iface = Class.forName(ifaceName);
+                            log.debug("Registering publisher bean for interface {}", ifaceName);
                             registerPublisherBean(registry, iface);
                             log.debug("Registered publisher bean for interface {}", ifaceName);
                         } catch (ClassNotFoundException e) {
@@ -113,7 +116,7 @@ public class RabbitPublisherRegistrar implements ImportBeanDefinitionRegistrar, 
      * Registers a single dynamic proxy bean for the given interface.
      *
      * @param registry       the bean definition registry
-     * @param interfaceClass the interface annotated with {@link az.ailab.lib.messaging.annotation.RabbitEventPublisher}
+     * @param interfaceClass the interface annotated with {@link RabbitEventPublisher}
      * @throws IllegalStateException if a bean with the same name already exists
      */
     private void registerPublisherBean(BeanDefinitionRegistry registry, Class<?> interfaceClass) {
@@ -129,13 +132,11 @@ public class RabbitPublisherRegistrar implements ImportBeanDefinitionRegistrar, 
         beanDefinition.setInstanceSupplier(() -> getProxyObject(interfaceClass));
 
         registry.registerBeanDefinition(beanName, beanDefinition);
-
-        log.debug("Registered dynamic proxy bean for interface: {}", interfaceClass.getName());
     }
 
     /**
      * Creates the dynamic proxy instance for the specified interface via
-     * {@link az.ailab.lib.messaging.core.proxy.DynamicRabbitProxyFactoryBean}.
+     * {@link az.ailab.lib.messaging.core.publisher.proxy.DynamicRabbitProxyFactoryBean}.
      *
      * @param interfaceClass the interface to proxy
      * @return the proxy instance
@@ -151,6 +152,7 @@ public class RabbitPublisherRegistrar implements ImportBeanDefinitionRegistrar, 
                             beanFactory.getBean(RabbitInfrastructure.class),
                             beanFactory.getBean(RabbitTemplate.class),
                             beanFactory.getBean(AmqpAdmin.class),
+                            beanFactory.getBean(ObjectMapper.class),
                             resolveApplicationName()
                     );
             return factory.getObject();

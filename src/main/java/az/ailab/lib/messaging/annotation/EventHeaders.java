@@ -23,6 +23,9 @@ import java.lang.annotation.Target;
  *
  * <p>In this example, all entries in <code>extraHeaders</code> will be included
  * in the AMQP message headers when <code>publishEvent</code> is called.</p>
+ *
+ * @since 1.0.2
+ * @author tahmazovfarid
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)

@@ -8,6 +8,33 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringApplicationRunListener;
 import org.springframework.core.env.ConfigurableEnvironment;
 
+/**
+ * Spring application listener that verifies the presence of necessary JVM options
+ * for dynamic proxy class generation based on the Java version being used.
+ * <p>
+ * Different Java versions require specific JVM options to enable dynamic proxy generation
+ * used by frameworks like Spring AOP. This class checks the runtime Java version and
+ * verifies that the appropriate JVM arguments are present, exiting the application
+ * with a helpful error message if they are missing.
+ * </p>
+ * <p>
+ * The class handles different Java versions as follows:
+ * <ul>
+ *   <li>Java 8 and earlier: No special options needed for proxy generation</li>
+ *   <li>Java 9-15: Proxy generation works by default without additional options</li>
+ *   <li>Java 16: Requires {@code --illegal-access=permit}</li>
+ *   <li>Java 17+: Requires {@code --add-opens=java.base/java.lang=ALL-UNNAMED}</li>
+ * </ul>
+ * </p>
+ * <p>
+ * This check runs during application bootstrap, before Spring context initialization,
+ * ensuring early detection of missing JVM options that could cause cryptic runtime errors.
+ * </p>
+ *
+ * @since 1.0
+ * @author tahmazovfarid
+ * @see SpringApplicationRunListener
+ */
 @Slf4j
 public class ProxyClassGenerationChecker implements SpringApplicationRunListener {
 

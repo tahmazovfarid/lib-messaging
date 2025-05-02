@@ -23,6 +23,9 @@ import java.lang.annotation.Target;
  *
  * <p>Here, the <code>userId</code> value will be sent as the
  * <code>X-User-Id</code> header in the message.</p>
+ *
+ * @since 1.0.2
+ * @author tahmazovfarid
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)

@@ -47,6 +47,7 @@ import org.springframework.stereotype.Component;
  * @see BaseOutboxEvent for the base entity implementation
  * @see EventProcessor for event processing implementation
  *
+ * @since 1.0.5
  * @author tahmazovfarid
  */
 @Data

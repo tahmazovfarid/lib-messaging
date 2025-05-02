@@ -11,6 +11,9 @@ import java.lang.annotation.Target;
  * 
  * <p>This annotation allows specifying a correlation ID when publishing messages,
  * which is useful for tracking related messages across services.</p>
+ *
+ * @since 1.0
+ * @author tahmazovfarid
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)

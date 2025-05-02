@@ -1,13 +1,16 @@
 package az.ailab.lib.messaging.config;
 
 import az.ailab.lib.messaging.config.properties.RabbitExtendedProperties;
-import az.ailab.lib.messaging.core.RabbitInfrastructure;
 import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
 import az.ailab.lib.messaging.core.resolver.QueueNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
 import az.ailab.lib.messaging.util.ApplicationContextUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -26,10 +29,14 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>This class configures custom components required for the messaging infrastructure
  * and leverages Spring Boot's autoconfiguration for the standard RabbitMQ infrastructure.</p>
+ *
+ * @since 1.0
+ * @author tahmazovfarid
  */
 @Configuration
 @EnableRabbit
 @EnableConfigurationProperties(RabbitExtendedProperties.class)
+@Slf4j
 @RequiredArgsConstructor
 public class RabbitConfiguration {
 
@@ -62,6 +69,37 @@ public class RabbitConfiguration {
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(messageConverter);
+
+        template.setReturnsCallback((returned) -> {
+            Message message = returned.getMessage();
+            MessageProperties props = message.getMessageProperties();
+
+            String messageId = props.getMessageId();
+            String correlationId = props.getCorrelationId();
+            String exchange = returned.getExchange();
+            String routingKey = returned.getRoutingKey();
+            int replyCode = returned.getReplyCode();
+            String replyText = returned.getReplyText();
+            String rawBody = new String(message.getBody(), StandardCharsets.UTF_8);
+            String bodyPreview = rawBody.length() > 200
+                    ? rawBody.substring(0, 200) + "…"
+                    : rawBody;
+
+            log.error(
+                    """ 
+                            Message DROPPED by broker (no binding for routingKey).
+                            messageId={} correlationId={}
+                            exchange='{}' routingKey='{}'
+                            replyCode={} replyText='{}'
+                            payloadPreview='{}'
+                            """,
+                    messageId, correlationId,
+                    exchange, routingKey,
+                    replyCode, replyText,
+                    bodyPreview
+            );
+        });
+
         return template;
     }
 

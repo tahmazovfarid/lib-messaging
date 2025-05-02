@@ -1,10 +1,11 @@
-package az.ailab.lib.messaging.core.proxy;
+package az.ailab.lib.messaging.core.publisher.proxy;
 
-import az.ailab.lib.messaging.annotation.RabbitEventPublisher;
+import az.ailab.lib.messaging.core.publisher.annotation.RabbitEventPublisher;
 import az.ailab.lib.messaging.core.ExchangeType;
 import az.ailab.lib.messaging.core.RabbitInfrastructure;
 import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Proxy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.AmqpAdmin;
@@ -19,6 +20,7 @@ public class DynamicRabbitProxyFactoryBean<T> implements FactoryBean<T> {
     private final RabbitInfrastructure infrastructure;
     private final RabbitTemplate rabbitTemplate;
     private final AmqpAdmin amqpAdmin;
+    private final ObjectMapper objectMapper;
     private final String applicationName;
 
     private final Class<T> interfaceClass;
@@ -30,12 +32,14 @@ public class DynamicRabbitProxyFactoryBean<T> implements FactoryBean<T> {
                                          RabbitInfrastructure infrastructure,
                                          RabbitTemplate rabbitTemplate,
                                          AmqpAdmin amqpAdmin,
+                                         ObjectMapper objectMapper,
                                          String applicationName) throws ClassNotFoundException {
         this.routingKeyResolver = routingKeyResolver;
         this.exchangeNameResolver = exchangeNameResolver;
         this.infrastructure = infrastructure;
         this.rabbitTemplate = rabbitTemplate;
         this.amqpAdmin = amqpAdmin;
+        this.objectMapper = objectMapper;
         this.applicationName = applicationName;
 
         // Load interface
@@ -52,10 +56,10 @@ public class DynamicRabbitProxyFactoryBean<T> implements FactoryBean<T> {
         String source = annotation.source().isEmpty() ? applicationName : annotation.source();
 
         if (annotation.autoCreate()) {
-            infrastructure.createExchange(amqpAdmin, resolvedExchange, exchangeType);
+            infrastructure.declareExchange(amqpAdmin, resolvedExchange, exchangeType);
             log.debug("Exchange auto-created: {} [{}]", resolvedExchange, exchangeType);
         } else {
-            log.info("Exchange auto-creation disabled. Ensure exchange '{}' exists.", resolvedExchange);
+            log.debug("Exchange auto-creation disabled. Ensure exchange '{}' exists.", resolvedExchange);
         }
 
         return createProxy(resolvedExchange, exchangeType, source);
@@ -76,7 +80,13 @@ public class DynamicRabbitProxyFactoryBean<T> implements FactoryBean<T> {
         return (T) Proxy.newProxyInstance(
                 interfaceClass.getClassLoader(),
                 new Class<?>[] {interfaceClass},
-                new PublisherInvocationHandler(rabbitTemplate, routingKeyResolver, exchange, exchangeType, source)
+                new PublisherInvocationHandler(
+                        rabbitTemplate,
+                        routingKeyResolver,
+                        objectMapper,
+                        exchange,
+                        exchangeType,
+                        source)
         );
     }
 

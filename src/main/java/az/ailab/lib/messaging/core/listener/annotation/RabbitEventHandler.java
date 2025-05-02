@@ -1,10 +1,11 @@
-package az.ailab.lib.messaging.annotation;
+package az.ailab.lib.messaging.core.listener.annotation;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import lombok.NonNull;
 
 /**
  * Marks a method as a handler for specific message routing keys.
@@ -20,14 +21,25 @@ import java.lang.annotation.Target;
  *
  * <p>Usage example:</p>
  * <pre>{@code
- * @RabbitEventListener(exchange = "user-events")  // Similar to @RestController
+ * @RabbitEventListener(exchange = "user-events", autoCreate = true)  // Similar to @RestController
  * public class UserEventListener {
  *
  *     private final UserService userService;
  *
- *     @RabbitEventHandler(routingKey = "created", minConsumers = 3, maxConsumers = 8)  // Similar to @PostMapping
+ *     @RabbitEventHandler(
+ *         routingKey = "created", // default value
+ *         minConsumers = 3,
+ *         maxConsumers = 6,
+ *         retry = @Retry(
+ *             enabled = true,
+ *             delayMs = 5000,
+ *             maxAttempts = 4,
+ *             retryFor = {TransientException.class},
+ *             notRetryFor = {IllegalArgumentException.class}
+ *         ),
+ *         dlqSuffix = ".dlq" // default value
+ *     )
  *     public void handleUserCreated(EventMessage<UserCreatedEvent> event) {
- *         // Process user created event
  *         userService.create(event.payload());
  *     }
  *
@@ -44,6 +56,14 @@ import java.lang.annotation.Target;
  *     }
  * }
  * }</pre>
+ *
+ * <p>This configuration will:</p>
+ * <ul>
+ *   <li>Listen for messages with routing key <code>created</code> on the <code>user-events</code> exchange</li>
+ *   <li>Use 3–6 concurrent consumers for this specific handler</li>
+ *   <li>Retry up to 4 times with 5s delay on transient errors</li>
+ *   <li>Route to <code>[queue].dlq</code> if all retries are exhausted or a non-retryable exception is thrown</li>
+ * </ul>
  *
  * @author tahmazovfarid
  */
@@ -67,7 +87,7 @@ public @interface RabbitEventHandler {
      *
      * @return the routing key
      */
-    String routingKey();
+    @NonNull String routingKey();
 
     /**
      * The name of the queue to bind to this handler.
@@ -119,5 +139,30 @@ public @interface RabbitEventHandler {
      * @return the maximum number of concurrent consumers
      */
     int maxConsumers() default 5;
+
+    /**
+     * Retry configuration for this handler.
+     * <p>Defines whether to enable native Rabbit retry, how many
+     * attempts to make, delay between retries, and DLQ suffixes.</p>
+     *
+     * @return the retry settings for this handler
+     */
+    Retry retry() default @Retry(enabled = false);
+
+    /**
+     * Dead letter queue suffix
+     */
+    String dlqSuffix() default ".dlq";
+
+    /**
+     * Whether to use a dead letter queue after all retry attempts have been exhausted.
+     * <p>
+     * If enabled, failed messages will be routed to a dead letter queue following the naming
+     * convention: "{original-queue-name}.dlq"
+     * </p>
+     *
+     * @return true to enable DLQ routing, false otherwise
+     */
+    boolean enableDeadLetterQueue() default true;
 
 }

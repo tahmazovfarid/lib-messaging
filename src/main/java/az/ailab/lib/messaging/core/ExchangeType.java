@@ -35,14 +35,7 @@ public enum ExchangeType {
      * <p>This is useful for scenarios where the same message needs to be processed by multiple consumers,
      * such as broadcasting notifications to all users.</p>
      */
-    FANOUT("fanout"),
-
-    /**
-     * Headers exchange routes messages based on message header values rather than routing keys.
-     *
-     * <p>This allows for more complex routing logic based on multiple criteria.</p>
-     */
-    HEADERS("headers");
+    FANOUT("fanout");
 
     private final String type;
 

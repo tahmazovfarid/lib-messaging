@@ -1,11 +1,15 @@
-package az.ailab.lib.messaging.annotation;
+package az.ailab.lib.messaging.core.listener.annotation;
 
+import az.ailab.lib.messaging.core.publisher.annotation.RabbitEventPublisher;
 import az.ailab.lib.messaging.core.ExchangeType;
+import az.ailab.lib.messaging.core.EventMessage;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import lombok.NonNull;
+import org.springframework.stereotype.Component;
 
 /**
  * Marks a class as a RabbitMQ event listener.
@@ -26,28 +30,27 @@ import java.lang.annotation.Target;
  * <p>Usage example:</p>
  * <pre>{@code
  * @RabbitEventListener(exchange = "user-events", exchangeType = ExchangeType.TOPIC)
- * @Component
  * @Slf4j
  * public class UserEventListener {
  *
  *     private final UserService userService;
  *
  *     @RabbitEventHandler(routingKey = "user.created")
- *     public void handleUserCreated(EventMessage<UserCreatedEvent> event) {
+ *     public void handleUserCreated(UserCreatedEvent event) {
  *         userService.create(event.payload());
- *         log.info("User created: {}", event.payload().getId());
+ *         log.info("User {} creation synced.", event.getId());
  *     }
  *
  *     @RabbitEventHandler(routingKey = "user.*.updated")
- *     public void handleUserUpdated(EventMessage<UserUpdatedEvent> event) {
+ *     public void handleUserUpdated(UserUpdatedEvent event) {
  *         userService.update(event.payload());
- *         log.info("User updated: {}", event.payload().getId());
+ *         log.info("User {} update synced.", event.getId());
  *     }
  *
  *     @RabbitEventHandler(routingKey = "#.deleted")
  *     public void handleUserDeleted(EventMessage<UserDeletedEvent> event) {
  *         userService.delete(event.payload().getId());
- *         log.info("User deleted: {}", event.payload().getId());
+ *         log.info("User {} delete synced.", event.payload().getId());
  *     }
  * }
  * }</pre>
@@ -64,10 +67,12 @@ import java.lang.annotation.Target;
  * @see RabbitEventHandler
  * @see RabbitEventPublisher
  * @see ExchangeType
+ * @see EventMessage
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+@Component
 public @interface RabbitEventListener {
 
     /**
@@ -78,7 +83,7 @@ public @interface RabbitEventListener {
      *
      * @return the exchange name
      */
-    String exchange();
+    @NonNull String exchange();
 
     /**
      * The type of the exchange.
@@ -97,5 +102,10 @@ public @interface RabbitEventListener {
      * @return {@code true} if the exchange should be auto-created; {@code false} otherwise
      */
     boolean autoCreate() default false;
+
+    /**
+     * Dead letter exchange suffix
+     */
+    String dlxSuffix() default ".dlx";
 
 }

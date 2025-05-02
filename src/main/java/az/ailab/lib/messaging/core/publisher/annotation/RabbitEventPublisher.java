@@ -1,4 +1,4 @@
-package az.ailab.lib.messaging.annotation;
+package az.ailab.lib.messaging.core.publisher.annotation;
 
 import az.ailab.lib.messaging.core.ExchangeType;
 import java.lang.annotation.Documented;
@@ -6,7 +6,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.springframework.stereotype.Component;
 
 /**
  * Marks an interface as a publisher for RabbitMQ events.
@@ -36,7 +35,6 @@ import org.springframework.stereotype.Component;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Component
 public @interface RabbitEventPublisher {
 
     /**
