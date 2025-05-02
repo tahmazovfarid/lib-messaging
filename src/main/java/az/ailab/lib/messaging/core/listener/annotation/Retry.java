@@ -40,7 +40,7 @@ import lombok.NonNull;
  * @see RabbitEventHandler
  * @see RabbitInfrastructure
  * @see ContainerListenerAdapter
- * @since 1.1
+ * @since 1.2
  * @author tahmazovfarid
  */
 @Target(ElementType.ANNOTATION_TYPE)

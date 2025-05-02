@@ -41,7 +41,7 @@ import org.springframework.amqp.rabbit.listener.api.ChannelAwareMessageListener;
  * </p>
  *
  * @author tahmazovfarid
- * @since 1.1
+ * @since 1.2
  */
 @Slf4j
 public class ContainerListenerAdapter implements ChannelAwareMessageListener {

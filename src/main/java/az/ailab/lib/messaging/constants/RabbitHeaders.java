@@ -3,7 +3,7 @@ package az.ailab.lib.messaging.constants;
 /**
  * Constants for RabbitMQ header names used by the messaging library.
  * <p>Centralizes all header key names to avoid string duplication and typos.</p>
- * @since 1.1
+ * @since 1.2
  * @author tahmazovfarid
  */
 public final class RabbitHeaders {

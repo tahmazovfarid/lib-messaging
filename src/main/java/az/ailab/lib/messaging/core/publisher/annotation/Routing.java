@@ -45,7 +45,7 @@ public @interface Routing {
      * Maximum time in milliseconds to wait for a publisher confirm from the broker.
      * Only applies if {@link #confirm()} is {@code true}.
      *
-     * @since 1.1
+     * @since 1.2
      * @return timeout in milliseconds
      */
     long timeout() default 1_000L;

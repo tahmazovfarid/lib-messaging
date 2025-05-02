@@ -138,7 +138,7 @@ public class RabbitInfrastructure {
      * @param retry           retry configuration including TTL, suffixes, and enablement
      *
      * @see Retry
-     * @since 1.1
+     * @since 1.2
      */
     private void setupWithRetryInfra(AmqpAdmin amqpAdmin,
                                      String exchangeName,

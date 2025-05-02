@@ -9,7 +9,7 @@ import lombok.Getter;
  * and potential retry or dead-letter handling.</p>
  *
  * @author tahmazovfarid
- * @since 1.1
+ * @since 1.2
  */
 @Getter
 public class PublishFailureException extends Exception {
