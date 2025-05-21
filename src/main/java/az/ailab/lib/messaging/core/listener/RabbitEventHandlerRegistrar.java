@@ -5,6 +5,7 @@ import az.ailab.lib.messaging.core.listener.adapter.ContainerListenerAdapter;
 import az.ailab.lib.messaging.core.listener.annotation.RabbitEventHandler;
 import az.ailab.lib.messaging.core.listener.annotation.RabbitEventListener;
 import az.ailab.lib.messaging.core.listener.annotation.Retry;
+import az.ailab.lib.messaging.core.listener.idempotency.IdempotencyService;
 import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
 import az.ailab.lib.messaging.core.resolver.QueueNameResolver;
 import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
@@ -53,6 +54,7 @@ public class RabbitEventHandlerRegistrar implements ApplicationListener<ContextR
     private final AmqpAdmin amqpAdmin;
     private final RabbitInfrastructure infrastructure;
     private final ObjectMapper objectMapper;
+    private final IdempotencyService idempotencyService;
 
     /**
      * Handles the ContextRefreshedEvent after the Spring application context is initialized.
@@ -168,8 +170,8 @@ public class RabbitEventHandlerRegistrar implements ApplicationListener<ContextR
                                        final int minConsumers,
                                        final int maxConsumers) {
         try {
-            final var listenerAdapter = new ContainerListenerAdapter(bean, method, objectMapper, exchangeName,
-                    dlxName, routingKey, queueName, retryConfig
+            final var listenerAdapter = new ContainerListenerAdapter(bean, method, objectMapper, idempotencyService,
+                    exchangeName, dlxName, routingKey, queueName, retryConfig
             );
 
             final var container = new SimpleMessageListenerContainer(connectionFactory);

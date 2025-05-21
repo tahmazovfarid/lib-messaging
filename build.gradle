@@ -36,6 +36,9 @@ repositories {
 }
 
 dependencies {
+    api "org.redisson:redisson-spring-boot-starter:${redissonVersion}"
+
+    api "com.github.ben-manes.caffeine:caffeine:${caffeineVersion}"
     api "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
     api "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
 

@@ -24,12 +24,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       dead-letter-queue-suffix: .dlq
  * </pre>
  *
- * @since 1.0
  * @author tahmazovfarid
+ * @since 1.0
  */
+@ConfigurationProperties(prefix = "spring.rabbitmq.config")
 @Setter
 @Getter
-@ConfigurationProperties(prefix = "spring.rabbitmq.config")
 public class RabbitExtendedProperties {
 
     /**
