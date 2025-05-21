@@ -1,9 +1,11 @@
 package az.ailab.lib.messaging.annotation;
 
 import az.ailab.lib.messaging.config.RabbitConfiguration;
+import az.ailab.lib.messaging.config.RedissonConfiguration;
 import az.ailab.lib.messaging.core.listener.annotation.RabbitEventListener;
 import az.ailab.lib.messaging.core.listener.RabbitEventHandlerRegistrar;
 import az.ailab.lib.messaging.core.RabbitInfrastructure;
+import az.ailab.lib.messaging.core.listener.idempotency.RedisIdempotencyService;
 import az.ailab.lib.messaging.core.publisher.annotation.RabbitEventPublisher;
 import az.ailab.lib.messaging.core.publisher.RabbitPublisherRegistrar;
 import java.lang.annotation.Documented;
@@ -79,7 +81,9 @@ import org.springframework.core.annotation.AliasFor;
         RabbitInfrastructure.class,
         RabbitEventHandlerRegistrar.class,
         RabbitPublisherRegistrar.class,
-        RabbitConfiguration.class
+        RabbitConfiguration.class,
+        RedissonConfiguration.class,
+        RedisIdempotencyService.class
 })
 public @interface EnableRabbitMessaging {
 
