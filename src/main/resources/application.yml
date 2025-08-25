@@ -1,0 +1,38 @@
+logging:
+  level:
+    ROOT: ERROR
+    az.ailab: DEBUG
+    org.springframework.security: ERROR
+    org.hibernate.cache: ERROR
+
+spring:
+  # Redis configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      username:
+      password:
+      timeout: 2000ms
+      connect-timeout: 2000ms
+      client-type: lettuce
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  application:
+    name: "test"
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: true
+        default-requeue-rejected: false
+        acknowledge-mode: none
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    config:
+      queue-prefix: expertise.ms-user.

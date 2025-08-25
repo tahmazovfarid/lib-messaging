@@ -3,6 +3,7 @@ package az.ailab.lib.messaging.config.properties;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * Extended RabbitMQ configuration properties that complement the standard
@@ -44,6 +45,8 @@ public class RabbitExtendedProperties {
      * <p>Default value is an empty string.</p>
      */
     private String queuePrefix = "";
+
+
 
     /**
      * Suffix used for dead letter exchanges.

@@ -1,10 +1,13 @@
 package az.ailab.lib.messaging.config;
 
+import az.ailab.lib.messaging.config.properties.HybridSerializationConfig;
+import az.ailab.lib.messaging.config.properties.MessageSchedulingProperties;
 import az.ailab.lib.messaging.config.properties.RabbitExtendedProperties;
-import az.ailab.lib.messaging.core.resolver.ExchangeNameResolver;
-import az.ailab.lib.messaging.core.resolver.QueueNameResolver;
-import az.ailab.lib.messaging.core.resolver.RoutingKeyResolver;
-import az.ailab.lib.messaging.util.ApplicationContextUtil;
+import az.ailab.lib.messaging.infra.RabbitInfrastructure;
+import az.ailab.lib.messaging.infra.resolver.ExchangeNameResolver;
+import az.ailab.lib.messaging.infra.resolver.QueueNameResolver;
+import az.ailab.lib.messaging.infra.resolver.RoutingKeyResolver;
+import az.ailab.lib.messaging.infra.util.ApplicationContextUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
@@ -35,12 +38,20 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @EnableRabbit
-@EnableConfigurationProperties(RabbitExtendedProperties.class)
+@EnableConfigurationProperties({
+        RabbitExtendedProperties.class,
+        HybridSerializationConfig.class
+})
 @Slf4j
 @RequiredArgsConstructor
 public class RabbitConfiguration {
 
     private final RabbitExtendedProperties properties;
+
+    @Bean
+    public MessageSchedulingProperties messageSchedulingProperties() {
+        return new MessageSchedulingProperties();
+    }
 
     /**
      * Creates a JSON message converter for converting Java objects to and from JSON.
@@ -104,6 +115,16 @@ public class RabbitConfiguration {
     }
 
     /**
+     * Creates a RabbitInfrastructure for declaring exchanges, queues, and bindings.
+     *
+     * @return the RabbitInfrastructure
+     */
+    @Bean
+    public RabbitInfrastructure rabbitInfrastructure() {
+        return new RabbitInfrastructure();
+    }
+
+    /**
      * Creates a RabbitAdmin for managing RabbitMQ exchanges, queues, and bindings.
      *
      * @param connectionFactory the connection factory
@@ -135,36 +156,6 @@ public class RabbitConfiguration {
     }
 
     /**
-     * Creates a QueueNameResolver for resolving queue names based on application context and configuration.
-     *
-     * @return the queue name resolver
-     */
-    @Bean
-    public QueueNameResolver queueNameResolver() {
-        return new QueueNameResolver(properties.getQueuePrefix());
-    }
-
-    /**
-     * Creates an ExchangeNameResolver for resolving exchange names.
-     *
-     * @return the exchange name resolver
-     */
-    @Bean
-    public ExchangeNameResolver exchangeNameResolver() {
-        return new ExchangeNameResolver();
-    }
-
-    /**
-     * Creates a RoutingKeyResolver for resolving routing keys.
-     *
-     * @return the routing key resolver
-     */
-    @Bean
-    public RoutingKeyResolver routingKeyResolver() {
-        return new RoutingKeyResolver();
-    }
-
-    /**
      * Creates an ApplicationContextProvider for accessing the application context.
      *
      * @return the application context provider
@@ -172,6 +163,11 @@ public class RabbitConfiguration {
     @Bean
     public ApplicationContextUtil applicationContextProvider() {
         return new ApplicationContextUtil();
+    }
+
+    @Bean
+    public NameResolverConfiguration nameResolverConfiguration() {
+        return new NameResolverConfiguration(properties);
     }
 
 }
