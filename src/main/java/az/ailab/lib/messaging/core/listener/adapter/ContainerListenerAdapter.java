@@ -140,13 +140,13 @@ public class ContainerListenerAdapter implements ChannelAwareMessageListener {
      */
     private void markProcessed(String mId) {
         if (method.isAnnotationPresent(Idempotent.class)) {
-            idempotencyService.markProcessed(mId);
+            idempotencyService.markProcessed(mId, queueName);
         }
     }
 
     private void markFailed(String mId) {
         if (method.isAnnotationPresent(Idempotent.class)) {
-            idempotencyService.markFailed(mId);
+            idempotencyService.markFailed(mId, queueName);
         }
     }
 
