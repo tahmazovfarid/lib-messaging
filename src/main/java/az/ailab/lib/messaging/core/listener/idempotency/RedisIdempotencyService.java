@@ -39,8 +39,8 @@ public class RedisIdempotencyService implements IdempotencyService {
      * @return {@code true} if the message should be processed; {@code false} otherwise
      */
     @Override
-    public boolean shouldProcess(String messageId, long ttlMs) {
-        String redisKey = "idempotency:" + messageId;
+    public boolean shouldProcess(String messageId, String queueName, long ttlMs) {
+        String redisKey = buildRedisKey(messageId, queueName);
         RMap<String, String> map = redissonClient.getMap(redisKey);
 
         // Try to set status atomically if absent
@@ -61,8 +61,8 @@ public class RedisIdempotencyService implements IdempotencyService {
      * @param messageId the unique identifier of the message
      */
     @Override
-    public void markProcessed(String messageId) {
-        String redisKey = "idempotency:" + messageId;
+    public void markProcessed(String messageId, String queueName) {
+        String redisKey = buildRedisKey(messageId, queueName);
         RMap<String, String> map = redissonClient.getMap(redisKey);
         map.put("status", MessageStatus.PROCESSED.name());
     }
@@ -74,10 +74,14 @@ public class RedisIdempotencyService implements IdempotencyService {
      * @param messageId the unique identifier of the message
      */
     @Override
-    public void markFailed(String messageId) {
-        String redisKey = "idempotency:" + messageId;
+    public void markFailed(String messageId, String queueName) {
+        String redisKey = buildRedisKey(messageId, queueName);
         RMap<String, String> map = redissonClient.getMap(redisKey);
         map.put("status", MessageStatus.FAILED.name());
+    }
+
+    private String buildRedisKey(String messageId, String queueName) {
+        return "idempotency:" + queueName + ":" + messageId;
     }
 
 }

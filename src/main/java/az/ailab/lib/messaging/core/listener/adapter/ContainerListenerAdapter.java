@@ -164,7 +164,7 @@ public class ContainerListenerAdapter implements ChannelAwareMessageListener {
     private boolean skipIfDuplicate(String messageId) {
         if (method.isAnnotationPresent(Idempotent.class)) {
             Idempotent idem = method.getAnnotation(Idempotent.class);
-            return !idempotencyService.shouldProcess(messageId, idem.ttlMs());
+            return !idempotencyService.shouldProcess(messageId, queueName, idem.ttlMs());
         }
         return false;
     }

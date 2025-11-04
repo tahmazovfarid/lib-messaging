@@ -22,7 +22,7 @@ public interface IdempotencyService {
      * @return {@code true} if the message has not been processed and should be handled;
      *         {@code false} if it has already been processed
      */
-    boolean shouldProcess(String messageId, long ttlMs);
+    boolean shouldProcess(String messageId, String queueName, long ttlMs);
 
     /**
      * Marks the message as successfully processed. After this call,
@@ -30,7 +30,7 @@ public interface IdempotencyService {
      *
      * @param messageId the unique identifier of the message
      */
-    void markProcessed(String messageId);
+    void markProcessed(String messageId, String queueName);
 
     /**
      * Marks the message as failed. This may allow it to be retried depending
@@ -38,6 +38,6 @@ public interface IdempotencyService {
      *
      * @param messageId the unique identifier of the message
      */
-    void markFailed(String messageId);
+    void markFailed(String messageId, String queueName);
 
 }
