@@ -37,8 +37,12 @@ public class PublishFailureException extends Exception {
      * @param eventMessage the event message that could not be published
      */
     public PublishFailureException(String exchange, String routingKey, EventMessage<?> eventMessage) {
+        this(exchange, routingKey, eventMessage, null);
+    }
+
+    public PublishFailureException(String exchange, String routingKey, EventMessage<?> eventMessage, Throwable cause) {
         super("Failed to publish message with id '" + eventMessage.getId() +
-                "' to exchange '" + exchange + "' with routing key '" + routingKey + "'");
+                "' to exchange '" + exchange + "' with routing key '" + routingKey + "'", cause);
         this.exchange = exchange;
         this.routingKey = routingKey;
         this.eventMessage = eventMessage;

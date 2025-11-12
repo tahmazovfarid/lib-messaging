@@ -202,7 +202,7 @@ public class PublisherInvocationHandler implements InvocationHandler {
             return null;
         } catch (Exception e) {
             log.error("Failed to publish to {} with key {}", exchange, routingKey);
-            throw new PublishFailureException(exchange, routingKey, eventMessage);
+            throw new PublishFailureException(exchange, routingKey, eventMessage, e);
         }
     }
 
