@@ -54,14 +54,33 @@ public class RedisIdempotencyService implements IdempotencyService {
             return true; // First processor
         }
 
-        // Check if status is non-terminal
+        // Already processed - skip
         if (MessageStatus.PROCESSED.name().equals(existing)) {
-            log.debug("[Idempotency] Duplicate message detected, skipping | key={} | status={}", redisKey, existing);
+            log.info("[Idempotency] Duplicate message detected, skipping | key={} | status={}", redisKey, existing);
             return false;
         }
 
-        log.debug("[Idempotency] Message already exists but not PROCESSED | key={} | status={}", redisKey, existing);
-        return true;
+        // PENDING means another consumer is currently processing - skip to avoid duplicate processing
+        if (MessageStatus.PENDING.name().equals(existing)) {
+            log.info("[Idempotency] Message is being processed by another consumer, skipping | key={} | status={}", redisKey, existing);
+            return false;
+        }
+
+        // FAILED status - try to acquire lock by changing to PENDING atomically
+        if (MessageStatus.FAILED.name().equals(existing)) {
+            boolean acquired = map.replace("status", MessageStatus.FAILED.name(), MessageStatus.PENDING.name());
+            if (acquired) {
+                map.expire(Duration.ofMillis(ttlMs));
+                log.debug("[Idempotency] Acquired the FAILED message for retry | key={}", redisKey);
+                return true;
+            } else {
+                log.info("[Idempotency] Another consumer acquired the FAILED message | key={}", redisKey);
+                return false;
+            }
+        }
+
+        log.warn("[Idempotency] Unknown status, skipping | key={} | status={}", redisKey, existing);
+        return false;
     }
 
     /**

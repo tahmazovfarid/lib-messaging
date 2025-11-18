@@ -35,3 +35,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+.DS_Store
+src/.DS_Store
+
+src/main/java/az/ailab/lib/messaging/Application.java
+src/main/java/az/ailab/lib/messaging/test
+src/main/resources/application.yml

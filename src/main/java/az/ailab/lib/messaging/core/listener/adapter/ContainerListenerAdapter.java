@@ -232,9 +232,8 @@ public class ContainerListenerAdapter implements ChannelAwareMessageListener {
                                      long maxAttempts) throws IOException {
         prepareExceptionHeaders(ex, message, ex.getMessage());
         channel.basicNack(tag, false, false);
-        log.warn("Retrying [messageId={}, queue={}, routingKey={}] attempt {}/{} cause {}: {}",
-                messageId, queueName, routingKey,
-                attempts + 1, maxAttempts,
+        log.warn("Retrying(attempt {}/{}) [messageId={}, queue={}, routingKey={}] cause {}: {}",
+                attempts + 1, maxAttempts, messageId, message, routingKey,
                 ex.getClass().getSimpleName(), ex.getMessage());
     }
 
@@ -260,6 +259,7 @@ public class ContainerListenerAdapter implements ChannelAwareMessageListener {
         channel.basicAck(tag, false);
         log.error("Published to DLX='{}', routingKey='{}', messageId={} cause:{}/'{}'",
                 dlxName, routingKey, messageId, ex.getClass().getSimpleName(), reason);
+        markProcessed(messageId);
     }
 
     /**
@@ -276,7 +276,6 @@ public class ContainerListenerAdapter implements ChannelAwareMessageListener {
         channel.basicPublish(dlxName, routingKey, props, body);
     }
 
-
     /**
      * Count how many times this queue has seen the message,
      * based on the "x-death" header entries.
@@ -288,13 +287,30 @@ public class ContainerListenerAdapter implements ChannelAwareMessageListener {
         List<Map<String, Object>> deaths =
                 message.getMessageProperties().getHeader(RabbitHeaders.X_DEATH);
         if (deaths == null) {
+            log.trace("No x-death header found for messageId={}",
+                    message.getMessageProperties().getMessageId());
             return 0;
         }
-        return deaths.stream()
-                .filter(d -> queueName.equals(d.get("queue")))
+
+        log.trace("x-death header contents for messageId={}: {}",
+                message.getMessageProperties().getMessageId(), deaths);
+
+        long count = deaths.stream()
+                .filter(d -> {
+                    String deathQueue = (String) d.get("queue");
+                    boolean matches = queueName.equals(deathQueue);
+                    log.debug("Comparing queue names - expected='{}', actual='{}', matches={}",
+                            queueName, deathQueue, matches);
+                    return matches;
+                })
                 .mapToLong(d -> (Long) d.get("count"))
                 .findFirst()
                 .orElse(0);
+
+        log.trace("x-death count for queue='{}', messageId={}: {}",
+                queueName, message.getMessageProperties().getMessageId(), count);
+
+        return count;
     }
 
     /**

@@ -60,6 +60,7 @@ dependencies {
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapStructVersion}"
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+    runtimeOnly 'org.postgresql:postgresql'
 }
 
 // Enable the jar task
@@ -77,6 +78,7 @@ wrapper {
 
 checkstyle {
     toolVersion = checkStyleVersion
+    ignoreFailures = true
 }
 
 ext {

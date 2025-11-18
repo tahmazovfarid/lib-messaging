@@ -18,7 +18,7 @@ public final class RabbitHeaders {
     public static final String DEAD_LETTER_ROUTING_KEY = "x-dead-letter-routing-key";
     public static final String RETRY_MESSAGE_TTL = "x-message-ttl";
     public static final String EXCEPTION_ORIGIN = "x-exception-origin";
-    public static final String EXCEPTION_TYPE = "x-exception -type";
+    public static final String EXCEPTION_TYPE = "x-exception-type";
     public static final String EXCEPTION_MESSAGE = "x-exception-message";
     public static final String FAILURE_REASON = "x-failure-reason";
 
