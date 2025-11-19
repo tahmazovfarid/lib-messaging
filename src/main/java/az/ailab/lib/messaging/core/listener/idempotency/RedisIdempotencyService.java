@@ -43,26 +43,26 @@ public class RedisIdempotencyService implements IdempotencyService {
     @Override
     public boolean shouldProcess(String messageId, String queueName, long ttlMs) {
         String redisKey = buildRedisKey(messageId, queueName);
-        log.debug("[Idempotency] Checking if message should be processed | key={} | ttlMs={}", redisKey, ttlMs);
+        log.trace("[Idempotency] Checking if message should be processed | key={} | ttlMs={}", redisKey, ttlMs);
         RMap<String, String> map = redissonClient.getMap(redisKey);
 
         // Try to set status atomically if absent
         String existing = map.putIfAbsent("status", MessageStatus.PENDING.name());
         if (existing == null) {
             map.expire(Duration.ofMillis(ttlMs));
-            log.debug("[Idempotency] Message registered as PENDING | key={} | expiresIn={}ms", redisKey, ttlMs);
+            log.trace("[Idempotency] Message registered as PENDING | key={} | expiresIn={}ms", redisKey, ttlMs);
             return true; // First processor
         }
 
         // Already processed - skip
         if (MessageStatus.PROCESSED.name().equals(existing)) {
-            log.info("[Idempotency] Duplicate message detected, skipping | key={} | status={}", redisKey, existing);
+            log.trace("[Idempotency] Duplicate message detected, skipping | key={} | status={}", redisKey, existing);
             return false;
         }
 
         // PENDING means another consumer is currently processing - skip to avoid duplicate processing
         if (MessageStatus.PENDING.name().equals(existing)) {
-            log.info("[Idempotency] Message is being processed by another consumer, skipping | key={} | status={}", redisKey, existing);
+            log.trace("[Idempotency] Message is being processed by another consumer, skipping | key={} | status={}", redisKey, existing);
             return false;
         }
 
@@ -71,10 +71,10 @@ public class RedisIdempotencyService implements IdempotencyService {
             boolean acquired = map.replace("status", MessageStatus.FAILED.name(), MessageStatus.PENDING.name());
             if (acquired) {
                 map.expire(Duration.ofMillis(ttlMs));
-                log.debug("[Idempotency] Acquired the FAILED message for retry | key={}", redisKey);
+                log.trace("[Idempotency] Acquired the FAILED message for retry | key={}", redisKey);
                 return true;
             } else {
-                log.info("[Idempotency] Another consumer acquired the FAILED message | key={}", redisKey);
+                log.trace("[Idempotency] Another consumer acquired the FAILED message | key={}", redisKey);
                 return false;
             }
         }
